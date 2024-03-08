@@ -1,0 +1,60 @@
+header{
+    background-color: #8B4513;
+}
+
+#title
+{
+    text-align: center;
+}
+
+#menu{
+    background-color: #6f3810;
+    text-align: center;
+}
+
+.menupont{
+    background-size: 200%;
+    text-align: center;
+    color: brown;
+    text-shadow: -1px -1px 1px rgba(138, 37, 37, 0.767);
+    background-color: #4f280c;
+    border-radius: 4px;
+}
+
+section,h2,h3,img,form,video{
+    background-color: rgba(255, 255, 255, 0.584);
+}
+
+body{
+    background-image: url("bg.jpg");
+}
+
+footer{
+    background-color: #4f280c;
+    text-align: center;
+    color: brown;
+}
+
+img,video{
+    width: 100%;
+}
+
+table{
+    width: 100%;
+}
+table, th, td {
+    border: 1px solid black;
+    background-color: #4f280c;
+    color: brown;
+  }
+details > summary {
+    list-style-type: '';
+}
+details{
+    text-align: center;
+}
+
+.fontos{
+    font-weight: bold;
+    font-style: italic;
+}
