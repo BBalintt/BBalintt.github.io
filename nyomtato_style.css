@@ -1,0 +1,6 @@
+header,footer,video{
+    visibility: hidden;
+}
+img{
+    height: 10%;
+}
