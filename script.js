@@ -52,9 +52,9 @@ function openModal() {
     }
     else{
       document.body.style.color = "";
-      document.body.style.color = "";
+      document.body.style.backgroundColor = "";
       document.body.style.fontSize = "";
-      document.body.style.backgroundImage="bg.jpg";
+      document.body.style.backgroundImage=url("bg.jpg");
       akad=false;
     }
   }
