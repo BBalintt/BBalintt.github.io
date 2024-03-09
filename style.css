@@ -27,6 +27,7 @@ section,h2,h3,img,form,video,p{
 
 body{
     background-image: url("bg.jpg");
+    font-family: Arial, Helvetica, sans-serif;
 }
 
 footer{
