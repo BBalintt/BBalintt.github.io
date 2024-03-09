@@ -45,7 +45,7 @@ function openModal() {
     if(!akad)
     {
       document.body.style.color = "yellow";
-      document.body.style.color = "backgroundColor";
+      document.body.style.backgroundColor = "black";
       document.body.style.fontSize = "x-large";
       document.body.style.backgroundImage="none";
       akad=true;
