@@ -39,9 +39,18 @@ function openModal() {
   function closeModal2() {
     document.getElementById("myModal2").style.display = "none";
   }
-
+  var akad=false;
   function akadaly()
   {
-    document.body.style.color = "yellow";
-    document.body.style.color = "backgroundColor";
+    if(akad)
+    {
+      document.body.style.color = "yellow";
+      document.body.style.color = "backgroundColor";
+      document.body.style.fontSize = "x-large";
+    }
+    else{
+      document.body.style.color = "";
+      document.body.style.color = "";
+      document.body.style.fontSize = "";
+    }
   }
