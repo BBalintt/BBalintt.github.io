@@ -40,4 +40,7 @@ function openModal() {
     document.getElementById("myModal2").style.display = "none";
   }
 
-  
+  akadaly()
+  {
+    document.getElementsByTagName("Body").style.color("white");
+  }
