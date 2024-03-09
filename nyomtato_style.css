@@ -1,9 +1,8 @@
-@media print {
-header,footer,video{
-    visibility: hidden;
-}
 
-    img {
-        width: 10%; /* Például a kép szélességét 10%-ra állítjuk nyomtatási nézetben */
+    header,footer,video{
+        visibility: hidden;
     }
-}
+    
+        img {
+            width: 10%; /* Például a kép szélességét 10%-ra állítjuk nyomtatási nézetben */
+        }
