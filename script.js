@@ -1,5 +1,3 @@
-var d=_GET
-
 function sendEmail() {
     var name = document.getElementById("name").value;
     var jatszott = document.getElementById("jatszott").checked ? "Játszottam már" : "Nem játszottam még";
