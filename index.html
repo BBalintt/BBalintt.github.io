@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hu">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +8,7 @@
     <title>Kezdőlap - easy tabletoproleplay</title>
     <link rel="stylesheet" media="screen" href="style.css">
     <link rel="stylesheet" media="print" href="nyomtato_style.css" />
+    <script src="script.js"></script>
 </head>
 <body>
     <header class="row">
@@ -17,8 +18,8 @@
             <br>
             <a href="quest.html" class="menupont">Quest</a>
         </nav>
-        <div class="col-1"><button id="akadalymentes" onclick="akadaly()" alt="akadalymentes-verzio"></button>
-        <button id="tart" onclick="tart()" alt="ismétlődő tartalmak egyszerüsítése"></button>
+        <div class="col-1"><button id="akadalymentes" onclick="akadaly()"></button>
+        <button id="tart" onclick="tart()"></button>
         </div>
     </header>
     <div class="row">
@@ -45,14 +46,14 @@
     </aside>
     
 <form id="myForm">
-    <text>Név:</text> <textarea maxlength="50" id="name" cols="10" rows="1"></textarea>
-    <text>E-mail cím:</text> <input maxlength="50" type="email" name="email" id="email" >
+    <label>Név:</label> <textarea maxlength="50" id="name" cols="10" rows="1"></textarea>
+    <label>E-mail cím:</label> <input maxlength="50" type="email" name="email" id="email" >
     <br>
     <input type="checkbox" name="jatszott" id="jatszott" onclick="ena()"><label for="jatszott">Játszottam már</label>
-    <input type="radio" name="j" value="0" disabled><label for="j">DnD</label>
-    <input type="radio" name="j" value="1" disabled><label for="j">Quest</label>
-    <input type="radio" name="j" value="2" disabled><label for="j">Mindkettő</label>
-    <input type="radio" name="j" value="3" disabled><label for="j">Egyéb</label>
+    <input type="radio" name="j" value="0" disabled><label for="jatszott">DnD</label>
+    <input type="radio" name="j" value="1" disabled><label for="jatszott">Quest</label>
+    <input type="radio" name="j" value="2" disabled><label for="jatszott">Mindkettő</label>
+    <input type="radio" name="j" value="3" disabled><label for="jatszott">Egyéb</label>
     <br>
     
     <button type="button" onclick="sendEmail()">Küldés</button>
@@ -65,5 +66,4 @@
     <footer>Készítette: Horváth Bálint 2024-ben</footer>
     
 </body>
-<script src="script.js"></script>
 </html>
