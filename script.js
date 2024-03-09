@@ -42,15 +42,19 @@ function openModal() {
   var akad=false;
   function akadaly()
   {
-    if(akad)
+    if(!akad)
     {
       document.body.style.color = "yellow";
       document.body.style.color = "backgroundColor";
       document.body.style.fontSize = "x-large";
+      document.body.style.backgroundImage="";
+      akad=true;
     }
     else{
       document.body.style.color = "";
       document.body.style.color = "";
       document.body.style.fontSize = "";
+      document.body.style.backgroundImage="bg.jpg";
+      akad=false;
     }
   }
