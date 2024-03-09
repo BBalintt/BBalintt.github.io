@@ -54,7 +54,7 @@ function openModal() {
       document.body.style.color = "";
       document.body.style.backgroundColor = "";
       document.body.style.fontSize = "";
-      document.body.style.backgroundImage=url("bg.jpg");
+      document.body.style.backgroundImage="bg.jpg";
       akad=false;
     }
   }
