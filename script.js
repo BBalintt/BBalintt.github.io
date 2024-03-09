@@ -58,3 +58,17 @@ function openModal() {
       akad=false;
     }
   }
+  var tartalom=false;
+  function tart(){
+    if(!tartalom)
+    {
+      document.getElementById("dndszov").innerHTML='<a href="dnd.html" >Dungeons and Dragons leírás</a>';
+      document.getElementById("questszov").innerHTML='<a href="quest.html" >Quest leírás</a>';
+      tartalom=true;
+    }
+    else{
+      document.getElementById("dndszov").innerHTML='A Dungeons & Dragons egy fantasy témájú, narratíva-központú TTRPG, amely egy közepesen bonyolult szabályrendszerre épül, így kezdőknek és tapasztalt játékosoknak egyaránt megfelel. Az együttműködésen alapuló játékmenet a karakterek fejlődésére és a csoportos kalandokra összpontosít, ahol a Dungeon Master irányítja a történetet.';
+      document.getElementById("questszov").innerHTML='A Quest egy könnyen elsajátítható, narratív központú TTRPG, amely egyszerűsített szabályrendszerrel és gyors karakteralkotási folyamattal hívja fel magára a figyelmet, ideális választás kezdőknek. A játék a történetmesélésre és a játékosok döntéseinek hatásaira helyezi a hangsúlyt, minimálisra csökkentve a bonyolult mechanikákat és a harci rendszert.';
+      tartalom=false;
+    }
+  }
