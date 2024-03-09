@@ -42,5 +42,7 @@ function openModal() {
 
   function akadaly()
   {
-    document.getElementsByTagName("Body").style.color("white");
+    document.getElementsByTagName("Body").forEach(element => {
+      element.style.color("black");
+    });
   }
