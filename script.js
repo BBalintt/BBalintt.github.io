@@ -42,8 +42,6 @@ function openModal() {
 
   function akadaly()
   {
-    var array=document.getElementsByTagName("section");
-    array.forEach(element => {
-      element.style.color("black");
-    });v
+    document.body.style.color = "yellow";
+    document.body.style.color = "backgroundColor";
   }
