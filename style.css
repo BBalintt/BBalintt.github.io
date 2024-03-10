@@ -7,6 +7,19 @@ header{
     text-align: center;
 }
 
+a {
+    color: blue;
+}
+
+
+a:link {
+    color: navy;
+}
+
+a:visited {
+    color: lightgray;
+}
+
 #menu{
     background-color: #6f3810;
     text-align: center;
