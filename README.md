@@ -1,0 +1,2 @@
+# Mapgenerator
+Javascript map generator
