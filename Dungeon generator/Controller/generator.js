@@ -1,16 +1,16 @@
-map=document.getElementById("map");
+import { drawDungeon } from "../View/draw.js";
 
-rooms=[];
+var rooms=[];
 
-for(i=0;i</*Math.round(Math.random()*700)+*/20;i++)
+for(let i=0;i</*Math.round(Math.random()*700)+*/20;i++)
 {
-    x=Math.round(Math.random()*5)+1;
-    y=Math.round(Math.random()*5)+1;
+    var x=Math.round(Math.random()*5)+1;
+    var y=Math.round(Math.random()*5)+1;
     const room = {
         id: i,
         height: x, // Sorok száma
         width: y,  // Oszlopok száma
-        matrix: [], // Ide pakoljuk a sorokat, mint eddig
+        matrix: [],
         centerx:0,
         centery:0,
         connected_to:false
@@ -18,8 +18,8 @@ for(i=0;i</*Math.round(Math.random()*700)+*/20;i++)
     rooms.push(room);
 }
 
-draw="";
-size=34;
+
+let size=34;
 const matrix = Array.from({ length: size }, () => Array(size).fill(0));
 
 rooms.forEach(room => {
@@ -29,9 +29,9 @@ rooms.forEach(room => {
         x = Math.floor(Math.random() * (size - room.height + 1));
         y = Math.floor(Math.random() * (size - room.width + 1));
     }
-    for(i=x;i<x+room.height;i++)
+    for(let i=x;i<x+room.height;i++)
     {
-        for(j=y;j<y+room.width;j++)
+        for(let j=y;j<y+room.width;j++)
         {
             console.log(x+","+y)
             matrix[i][j]=2;
@@ -134,34 +134,3 @@ function findClosestRoom(fromX, fromY, id, allRooms) {
     
     return closestRoom; // Visszaadja a legközelebbi szoba objektumát
 }
-
-function drawDungeon(map) {
-        canvas.width = map[0].length * tileSize;
-        canvas.height = map.length * tileSize;
-
-        for (let y = 0; y < map.length; y++) {
-            for (let x = 0; x < map[y].length; x++) {
-
-                switch(map[y][x]) {
-                    case 0:
-                        ctx.fillStyle = "black";
-                        break;
-
-                    case 1:
-                        ctx.fillStyle = "gray";
-                        break;
-
-                    case 2:
-                        ctx.fillStyle = "#994C00";
-                        break;
-                }
-
-                ctx.fillRect(
-                    x * tileSize,
-                    y * tileSize,
-                    tileSize,
-                    tileSize
-                );
-            }
-        }
-    }
