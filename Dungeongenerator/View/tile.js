@@ -1,4 +1,4 @@
-class tile
+export class tile
 {
     constructor(color, border, isolatedFrom) {
         this.color = color;

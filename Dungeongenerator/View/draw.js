@@ -1,3 +1,4 @@
+import {tile} from "./tile.js";
 var rows, cols, cellSize, canvas = document.getElementById("dungeon");
 var tileSize = 20;
 var ctx = canvas.getContext("2d");
@@ -10,23 +11,27 @@ export function drawDungeon(map) {
         rows = map[0].length;
         cols = rows;
         cellSize = canvas.width / cols; // 100 pixel cellánként
-
-        
+        tiletypes=[];
+        i=0;
+        document.getElementsByName("color").forEach(element => {
+            tiletypes.push(new tile(document.getElementById("color"+i), element.dataset.border, element.dataset.isolatedfrom.split(",")));
+            i++;
+        });
 
         for (let y = 0; y < map.length; y++) {
             for (let x = 0; x < map[y].length; x++) {
 
                 switch(map[y][x]) {
                     case 0:
-                        drawTile(x, y, "#000000 ", map[y][x]);
+                        drawTile(x, y, tiletypes[0].color, map[y][x]);
                         break;
 
                     case 1:
-                        drawTile(x, y, "grey", map[y][x]);
+                        drawTile(x, y, tiletypes[1].color, map[y][x]);
                         break;
 
                     case 2:
-                        drawTile(x, y, "#994C00", map[y][x]);
+                        drawTile(x, y, tiletypes[2].color, map[y][x]);
                         break;
                 }
 
