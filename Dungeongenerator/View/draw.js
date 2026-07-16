@@ -11,8 +11,8 @@ export function drawDungeon(map) {
         rows = map[0].length;
         cols = rows;
         cellSize = canvas.width / cols; // 100 pixel cellánként
-        tiletypes=[];
-        i=0;
+        var tiletypes=[];
+        var i=0;
         document.getElementsByName("color").forEach(element => {
             tiletypes.push(new tile(document.getElementById("color"+i), element.dataset.border, element.dataset.isolatedfrom.split(",")));
             i++;
