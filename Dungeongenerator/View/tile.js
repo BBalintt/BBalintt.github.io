@@ -1,12 +1,12 @@
 export class tile
 {
-    constructor(color/*, border, isolatedFrom*/) {
+    constructor(color, border, isolatedFrom) {
         this.color = color;
-        /*this.border = border;
-        this.isolatedFrom = isolatedFrom;*/
+        this.border = border;
+        this.isolatedFrom = isolatedFrom;
     }
 
     isIsolatedFrom(otherTile) {
-        return this.isolatedFrom.includes(otherTile);
+        return this.isolatedFrom.includes(String(otherTile));
     }
 }

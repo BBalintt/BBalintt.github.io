@@ -134,3 +134,10 @@ function findClosestRoom(fromX, fromY, id, allRooms) {
     
     return closestRoom; // Visszaadja a legközelebbi szoba objektumát
 }
+var i=0;
+document.getElementsByName("color").forEach(element => {
+    document.getElementById("color"+i).addEventListener("input", function() {
+        drawDungeon(matrix);
+    });
+    i++;
+});

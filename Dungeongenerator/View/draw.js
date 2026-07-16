@@ -14,7 +14,13 @@ export function drawDungeon(map) {
         var tiletypes=[];
         var i=0;
         document.getElementsByName("color").forEach(element => {
-            tiletypes.push(new tile(document.getElementById("color"+i).value/*, element.dataset.border, element.dataset.isolatedfrom*/));
+            var wallElements = [];
+            document.getElementsByName("walls"+i).forEach(wallElement => {
+                if (wallElement.checked) {
+                    wallElements.push(wallElement.value);
+                }
+            })
+            tiletypes.push(new tile(document.getElementById("color"+i).value, true, wallElements));
             i++;
         });
 
@@ -23,15 +29,15 @@ export function drawDungeon(map) {
 
                 switch(map[y][x]) {
                     case 0:
-                        drawTile(x, y, tiletypes[0].color, map[y][x]);
+                        drawTile(x, y, tiletypes[0], map[y][x]);
                         break;
 
                     case 1:
-                        drawTile(x, y, tiletypes[1].color, map[y][x]);
+                        drawTile(x, y, tiletypes[1], map[y][x]);
                         break;
 
                     case 2:
-                        drawTile(x, y, tiletypes[2].color, map[y][x]);
+                        drawTile(x, y, tiletypes[2], map[y][x]);
                         break;
                 }
 
@@ -39,15 +45,18 @@ export function drawDungeon(map) {
         }
 }
 
-function drawTile(x, y, color, type) {
-  ctx.fillStyle = color;
+function drawTile(x, y, tiletype, type) {
+  ctx.fillStyle = tiletype.color;
   ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-  if (type != 0) {
-    const roughness = 5; 
+  {
+    const roughness = 5;
     // ==========================================
     // 1. JOBB OLDAL
     // ==========================================
-    if (!(x + 1 < matrix[0].length && matrix[y][x + 1] == matrix[y][x])) {
+    // Ha a pálya szélén van, VAGY a szomszéd izolálva van
+    console.log(tiletype.isolatedFrom);
+    console.log(matrix[y][x + 1] + " " + tiletype.isIsolatedFrom(matrix[y][x + 1]));
+    if (x + 1 >= matrix[0].length || tiletype.isIsolatedFrom(matrix[y][x + 1])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
         for (let i = 0; i < 4; i++) {
@@ -69,7 +78,7 @@ function drawTile(x, y, color, type) {
     // ==========================================
     // 2. BAL OLDAL
     // ==========================================
-    if (!(x - 1 >= 0 && matrix[y][x - 1] == matrix[y][x])) {
+    if (x - 1 < 0 || tiletype.isIsolatedFrom(matrix[y][x - 1])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
         for (let i = 0; i < 4; i++) {
@@ -91,7 +100,7 @@ function drawTile(x, y, color, type) {
     // ==========================================
     // 3. FELSŐ OLDAL
     // ==========================================
-    if (!(y - 1 >= 0 && matrix[y - 1][x] == matrix[y][x])) {
+    if (y - 1 < 0 || tiletype.isIsolatedFrom(matrix[y - 1][x])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
         for (let i = 0; i < 4; i++) {
@@ -113,7 +122,8 @@ function drawTile(x, y, color, type) {
     // ==========================================
     // 4. ALSÓ OLDAL
     // ==========================================
-    if (!(y + 1 < matrix.length && matrix[y + 1][x] == matrix[y][x])) {
+    // JAVÍTVA: matrix.length-et nézünk matrix[0].length helyett
+    if (y + 1 >= matrix.length || tiletype.isIsolatedFrom(matrix[y + 1][x])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
         for (let i = 0; i < 4; i++) {
@@ -131,7 +141,7 @@ function drawTile(x, y, color, type) {
             ctx.stroke();
         }
     }
-  }
+}
 }
 
 let isDrawing = false; // Állapotjelző: le van-e nyomva az egér?
@@ -154,9 +164,9 @@ function handleTileClick(event) {
     // 1. Meghatározzuk, hogy mi lenne az ÚJ érték a radio gomb alapján
     let newValue;
     switch (selectedRadio.value) {
-      case "folyósó": newValue = 1; break;
+      case "folyosó": newValue = 1; break;
       case "szoba":   newValue = 2; break;
-      case "törlés":  newValue = 0; break;
+      case "semmi":  newValue = 0; break;
       default: return; // Ismeretlen érték esetén kilépünk
     }
 

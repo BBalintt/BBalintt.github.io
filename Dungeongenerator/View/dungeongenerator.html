@@ -7,13 +7,22 @@
 </head>
 <body>
     <canvas id="dungeon"></canvas>
-    <input type="radio" name="color" value="folyósó" checked> folyósó
-    <input type="radio" name="color" value="szoba"> Szoba
-    <input type="radio" name="color" value="törlés"> Törlés
+    <input type="color" id="color0" value="">
+    <input type="color" id="color1" value="#DAA06D">
+    <input type="color" id="color2" value="#E1C16E">
     <br>
-    <input type="color" id="color1">
-    <input type="color" id="color2">
-    <input type="color" id="color3">
+    <input type="radio" name="color" value="semmi"> Semmi
+    <input type="radio" name="color" value="folyosó"> Folyosó
+    <input type="radio" name="color" value="szoba"> Szoba
+    <br>
+    <p>Falak:</p>
+    <input type="checkbox" name="walls0" id="" value="1"> Folyosó
+    <input type="checkbox" name="walls1" id="" value="2"> Szoba
+    <input type="checkbox" name="walls2" id="" value="0"> Semmi
+    <br>
+    <input type="checkbox" name="walls0" id="" value="2"> Szoba
+    <input type="checkbox" name="walls1" id="" value="0"> Semmi
+    <input type="checkbox" name="walls2" id="" value="1"> Folyosó
 </body>
     <script type="module" src="../Controller/generator.js"></script>
 </html>
