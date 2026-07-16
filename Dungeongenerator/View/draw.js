@@ -14,8 +14,7 @@ export function drawDungeon(map) {
         var tiletypes=[];
         var i=0;
         document.getElementsByName("color").forEach(element => {
-            tiletypes.push(new tile(document.getElementById("color"+i)/*, element.dataset.border, element.dataset.isolatedfrom*/));
-            alert("color"+i+" "+document.getElementById("color"+i));
+            tiletypes.push(new tile(document.getElementById("color"+i).value/*, element.dataset.border, element.dataset.isolatedfrom*/));
             i++;
         });
 
