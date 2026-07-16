@@ -11,6 +11,8 @@ export function drawDungeon(map) {
         cols = rows;
         cellSize = canvas.width / cols; // 100 pixel cellánként
 
+        
+
         for (let y = 0; y < map.length; y++) {
             for (let x = 0; x < map[y].length; x++) {
 
