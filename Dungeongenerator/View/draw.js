@@ -4,6 +4,7 @@ var tileSize = 20;
 var ctx = canvas.getContext("2d");
 var matrix;
 
+
 export function drawDungeon(map) {
         matrix = map;
         canvas.width = map[0].length * tileSize;
@@ -11,7 +12,7 @@ export function drawDungeon(map) {
         rows = map[0].length;
         cols = rows;
         cellSize = canvas.width / cols; // 100 pixel cellánként
-        var tiletypes=[];
+        let tiletypes=[];
         var i=0;
         document.getElementsByName("color").forEach(element => {
             var wallElements = [];
@@ -29,15 +30,15 @@ export function drawDungeon(map) {
 
                 switch(map[y][x]) {
                     case 0:
-                        drawTile(x, y, tiletypes[0], map[y][x]);
+                        drawTile(x, y, tiletypes[0], map[y][x], tiletypes);
                         break;
 
                     case 1:
-                        drawTile(x, y, tiletypes[1], map[y][x]);
+                        drawTile(x, y, tiletypes[1], map[y][x], tiletypes);
                         break;
 
                     case 2:
-                        drawTile(x, y, tiletypes[2], map[y][x]);
+                        drawTile(x, y, tiletypes[2], map[y][x], tiletypes);
                         break;
                 }
 
@@ -45,7 +46,7 @@ export function drawDungeon(map) {
         }
 }
 
-function drawTile(x, y, tiletype, type) {
+function drawTile(x, y, tiletype, type, tiletypes) {
   ctx.fillStyle = tiletype.color;
   ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
   {
@@ -56,7 +57,7 @@ function drawTile(x, y, tiletype, type) {
     // Ha a pálya szélén van, VAGY a szomszéd izolálva van
     console.log(tiletype.isolatedFrom);
     console.log(matrix[y][x + 1] + " " + tiletype.isIsolatedFrom(matrix[y][x + 1]));
-    if (x + 1 >= matrix[0].length || tiletype.isIsolatedFrom(matrix[y][x + 1])) {
+    if (x + 1 <= matrix[0].length && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
         for (let i = 0; i < 4; i++) {
@@ -71,6 +72,23 @@ function drawTile(x, y, tiletype, type) {
                 edgeX - tileSize / 4 + Math.random() * roughness, endY,
                 edgeX, endY
             );
+            // 2. Lezárjuk a formát az egyenes jobb szél mentén vissza a kezdőpontig
+            ctx.lineTo(edgeX, startY); 
+            ctx.closePath();
+
+            // 3. Kitöltjük a hullám és a szél közötti részt
+            if(tiletype==tiletypes[0])
+            {
+                ctx.fillStyle = tiletypes[matrix[y][x + 1]].color; // Vagy amilyen színűre a kitöltést szeretnéd
+            }
+            else
+            {
+                ctx.fillStyle = tiletype.color; // Vagy amilyen színűre a kitöltést szeretnéd
+            }
+            ctx.fill();
+
+            // 4. Meghúzzuk a fekete körvonalat is a tetejére (opcionális, de szebb)
+            ctx.strokeStyle = "black";
             ctx.stroke();
         }
     }
@@ -78,7 +96,7 @@ function drawTile(x, y, tiletype, type) {
     // ==========================================
     // 2. BAL OLDAL
     // ==========================================
-    if (x - 1 < 0 || tiletype.isIsolatedFrom(matrix[y][x - 1])) {
+    if (x - 1 >= 0 && tiletype.isIsolatedFrom(matrix[y][x - 1])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
         for (let i = 0; i < 4; i++) {
@@ -93,6 +111,19 @@ function drawTile(x, y, tiletype, type) {
                 edgeX + tileSize / 4 - Math.random() * roughness, endY,
                 edgeX, endY
             );
+            // 3. Kitöltjük a hullám és a szél közötti részt
+            if( tiletype==tiletypes[0])
+            {
+                ctx.fillStyle = tiletypes[matrix[y][x - 1]].color; // Vagy amilyen színűre a kitöltést szeretnéd
+            }
+            else
+            {
+                ctx.fillStyle = ""; // Vagy amilyen színűre a kitöltést szeretnéd
+            }
+            ctx.fill();
+
+            // 4. Meghúzzuk a fekete körvonalat is a tetejére (opcionális, de szebb)
+            ctx.strokeStyle = "black";
             ctx.stroke();
         }
     }
@@ -100,7 +131,7 @@ function drawTile(x, y, tiletype, type) {
     // ==========================================
     // 3. FELSŐ OLDAL
     // ==========================================
-    if (y - 1 < 0 || tiletype.isIsolatedFrom(matrix[y - 1][x])) {
+    if (y - 1 >= 0 && tiletype.isIsolatedFrom(matrix[y - 1][x])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
         for (let i = 0; i < 4; i++) {
@@ -115,6 +146,19 @@ function drawTile(x, y, tiletype, type) {
                 endX, edgeY + tileSize / 4 - Math.random() * roughness,
                 endX, edgeY
             );
+            // 3. Kitöltjük a hullám és a szél közötti részt
+            if( tiletype==tiletypes[0])
+            {
+                ctx.fillStyle = tiletypes[matrix[y-1][x]].color; // Vagy amilyen színűre a kitöltést szeretnéd
+            }
+            else
+            {
+                ctx.fillStyle = ""; // Vagy amilyen színűre a kitöltést szeretnéd
+            }
+            ctx.fill();
+
+            // 4. Meghúzzuk a fekete körvonalat is a tetejére (opcionális, de szebb)
+            ctx.strokeStyle = "black";
             ctx.stroke();
         }
     }
@@ -123,7 +167,7 @@ function drawTile(x, y, tiletype, type) {
     // 4. ALSÓ OLDAL
     // ==========================================
     // JAVÍTVA: matrix.length-et nézünk matrix[0].length helyett
-    if (y + 1 >= matrix.length || tiletype.isIsolatedFrom(matrix[y + 1][x])) {
+    if (y + 1 < matrix.length && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
         for (let i = 0; i < 4; i++) {
@@ -138,6 +182,16 @@ function drawTile(x, y, tiletype, type) {
                 endX, edgeY - tileSize / 4 + Math.random() * roughness,
                 endX, edgeY
             );
+            // 3. Kitöltjük a hullám és a szél közötti részt
+            if(tiletype==tiletypes[0])
+            {
+                ctx.fillStyle = tiletypes[matrix[y+1][x]].color;
+            }
+
+            ctx.fill();
+
+            // 4. Meghúzzuk a fekete körvonalat is a tetejére (opcionális, de szebb)
+            ctx.strokeStyle = "black";
             ctx.stroke();
         }
     }
