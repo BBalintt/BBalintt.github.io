@@ -1,8 +1,9 @@
 import { drawDungeon } from "../View/draw.js";
+import { exportToDd2vtt } from "./exportDd2vtt.js";
 
 var rooms=[];
 
-for(let i=0;i</*Math.round(Math.random()*700)+*/20;i++)
+for(let i=0;i</*Math.round(Math.random()*700)+*/30;i++)
 {
     var x=Math.round(Math.random()*5)+1;
     var y=Math.round(Math.random()*5)+1;
@@ -19,7 +20,7 @@ for(let i=0;i</*Math.round(Math.random()*700)+*/20;i++)
 }
 
 
-let size=34;
+let size=50;
 const matrix = Array.from({ length: size }, () => Array(size).fill(0));
 
 rooms.forEach(room => {
@@ -140,4 +141,9 @@ document.getElementsByName("color").forEach(element => {
         drawDungeon(matrix);
     });
     i++;
+});
+
+document.getElementById("exportBtn").addEventListener("click", () => {
+    const canvas = document.getElementById("dungeon");
+    exportToDd2vtt(matrix, canvas, tileSize);
 });
