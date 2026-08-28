@@ -34,7 +34,6 @@ rooms.forEach(room => {
     {
         for(let j=y;j<y+room.width;j++)
         {
-            console.log(x+","+y)
             matrix[i][j]=2;
         }
     }

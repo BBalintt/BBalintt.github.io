@@ -55,8 +55,6 @@ function drawTile(x, y, tiletype, type, tiletypes) {
     // 1. JOBB OLDAL
     // ==========================================
     // Ha a pálya szélén van, VAGY a szomszéd izolálva van
-    console.log(tiletype.isolatedFrom);
-    console.log(matrix[y][x + 1] + " " + tiletype.isIsolatedFrom(matrix[y][x + 1]));
     if (x + 1 <= matrix[0].length && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
@@ -207,35 +205,45 @@ function handleTileClick(event) {
   const clickY = event.clientY - rect.top;
 
   const col = Math.floor(clickX / cellSize);
-  const row = Math.floor(clickY / cellSize);
+const row = Math.floor(clickY / cellSize);
 
-  // Határok ellenőrzése
-  if (row >= 0 && row < rows && col >= 0 && col < cols) {
+// Parse as integer to avoid string concatenation bugs
+const brush_size = parseInt(document.getElementById('brush_size').value, 10) || 0;
 
-    const selectedRadio = document.querySelector('input[name="color"]:checked');
-    if (!selectedRadio) return null;
+const selectedRadio = document.querySelector('input[name="color"]:checked');
+if (!selectedRadio) return;
 
-    // 1. Meghatározzuk, hogy mi lenne az ÚJ érték a radio gomb alapján
-    let newValue;
-    switch (selectedRadio.value) {
-      case "folyosó": newValue = 1; break;
-      case "szoba":   newValue = 2; break;
-      case "semmi":  newValue = 0; break;
-      default: return; // Ismeretlen érték esetén kilépünk
+// Determine the new value once outside the loops
+let newValue;
+switch (selectedRadio.value) {
+  case "folyosó": newValue = 1; break;
+  case "szoba":   newValue = 2; break;
+  case "semmi":   newValue = 0; break;
+  default: return;
+}
+
+let hasChanged = false;
+
+// Calculate brush bounds safely within matrix limits
+const startCol = Math.max(0, col - brush_size);
+const endCol   = Math.min(cols - 1, col + brush_size);
+const startRow = Math.max(0, row - brush_size);
+const endRow   = Math.min(rows - 1, row + brush_size);
+
+for (let c = startCol; c <= endCol; c++) {
+  for (let r = startRow; r <= endRow; r++) {
+    // Only update if the value actually changes
+    if (matrix[r][c] !== newValue) {
+      matrix[r][c] = newValue;
+      hasChanged = true;
     }
-
-    // 2. ELLENŐRZÉS: Ha a kiválasztott tile már most is az új értéken van,
-    // akkor nem történt változás, így azonnal megállítjuk a függvényt.
-    if (matrix[row][col] === newValue) {
-      return; 
-    }
-
-    // 3. Ha eljutottunk idáig, akkor VALÓDI változás történt!
-    matrix[row][col] = newValue;
-
-    // Újrarajzolás csak akkor fut le, ha tényleg változott valami
-    drawDungeon(matrix);
   }
+}
+
+// Redraw once after all cells in the brush radius are processed
+if (hasChanged) {
+  drawDungeon(matrix);
+}
 }
 
 // 1. Egérgomb LENYOMÁSA (bekapcsoljuk a rajzolást)
