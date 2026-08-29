@@ -148,12 +148,25 @@ OBR.onReady(async () => {
 
   updateSelection();
 
-  // Hozzáférési ellenőrző segédfüggvény
+  function getTokenData(metadata: Record<string, unknown>): TokenInventoryData {
+    const raw = metadata[METADATA_KEY] as Partial<TokenInventoryData> | undefined;
+    return {
+      type: raw?.type || "character",
+      isLocked: raw?.isLocked ?? false,
+      ownerName: raw?.ownerName || "",
+      equipment: raw?.equipment || {},
+      backpack: raw?.backpack || []
+    };
+  }
+
   function checkAccess(data: TokenInventoryData): boolean {
     if (isGM) return true;
 
-    const isOwner = data.ownerName && data.ownerName.trim().toLowerCase() === playerName.trim().toLowerCase();
-    const hasOwnerRestriction = !!(data.ownerName && data.ownerName.trim().length > 0);
+    const isOwner = Boolean(
+      data.ownerName && 
+      data.ownerName.trim().toLowerCase() === playerName.trim().toLowerCase()
+    );
+    const hasOwnerRestriction = Boolean(data.ownerName && data.ownerName.trim().length > 0);
 
     if (hasOwnerRestriction) {
       return isOwner;
@@ -188,22 +201,10 @@ OBR.onReady(async () => {
 
     const allItems = await OBR.scene.items.getItems();
 
-    // Szűrés:
-    // 1. Nem lehet a saját maga által kijelölt token
-    // 2. Csak CHARACTER rétegen lévő token
-    // 3. CSAK OLYAN TOKEN, AMELYHEZ VAN HOZZÁFÉRÉSE A JÁTÉKOSNAK
     availableTargetTokens = allItems
       .filter((i) => {
         if (i.id === selectedTokenId || i.layer !== "CHARACTER") return false;
-        
-        const data: TokenInventoryData = i.metadata[METADATA_KEY] as TokenInventoryData || {
-          type: "character",
-          isLocked: false,
-          ownerName: "",
-          equipment: {},
-          backpack: []
-        };
-
+        const data = getTokenData(i.metadata);
         return checkAccess(data);
       })
       .map((i) => ({ id: i.id, name: i.name || "Névtelen Token" }));
@@ -222,15 +223,8 @@ OBR.onReady(async () => {
     });
   }
 
-  function loadTokenData(token: any) {
-    const data: TokenInventoryData = token.metadata[METADATA_KEY] || {
-      type: "character",
-      isLocked: false,
-      ownerName: "",
-      equipment: {},
-      backpack: []
-    };
-
+  function loadTokenData(token: { metadata: Record<string, unknown> }) {
+    const data = getTokenData(token.metadata);
     const canAccess = checkAccess(data);
 
     if (!canAccess) {
@@ -276,15 +270,9 @@ OBR.onReady(async () => {
 
     await OBR.scene.items.updateItems([selectedTokenId], (items) => {
       for (let item of items) {
-        const currentData: TokenInventoryData = item.metadata[METADATA_KEY] || {
-          type: "character",
-          isLocked: false,
-          ownerName: "",
-          equipment: {},
-          backpack: []
-        };
+        const currentData = getTokenData(item.metadata);
         currentData.ownerName = ownerInput.value.trim();
-        item.metadata[METADATA_KEY] = currentData;
+        item.metadata[METADATA_KEY] = currentData as unknown as Record<string, unknown>;
       }
     });
   });
@@ -294,15 +282,9 @@ OBR.onReady(async () => {
 
     await OBR.scene.items.updateItems([selectedTokenId], (items) => {
       for (let item of items) {
-        const currentData: TokenInventoryData = item.metadata[METADATA_KEY] || {
-          type: "character",
-          isLocked: false,
-          ownerName: "",
-          equipment: {},
-          backpack: []
-        };
+        const currentData = getTokenData(item.metadata);
         currentData.isLocked = lockCheckbox.checked;
-        item.metadata[METADATA_KEY] = currentData;
+        item.metadata[METADATA_KEY] = currentData as unknown as Record<string, unknown>;
       }
     });
   });
@@ -311,15 +293,9 @@ OBR.onReady(async () => {
     if (!selectedTokenId || !isGM) return;
     await OBR.scene.items.updateItems([selectedTokenId], (items) => {
       for (let item of items) {
-        const currentData: TokenInventoryData = item.metadata[METADATA_KEY] || {
-          type: newType,
-          isLocked: false,
-          ownerName: "",
-          equipment: {},
-          backpack: []
-        };
+        const currentData = getTokenData(item.metadata);
         currentData.type = newType;
-        item.metadata[METADATA_KEY] = currentData;
+        item.metadata[METADATA_KEY] = currentData as unknown as Record<string, unknown>;
       }
     });
     updateSelection();
@@ -336,15 +312,9 @@ OBR.onReady(async () => {
 
       await OBR.scene.items.updateItems([selectedTokenId], (items) => {
         for (let item of items) {
-          const currentData: TokenInventoryData = item.metadata[METADATA_KEY] || {
-            type: "character",
-            isLocked: false,
-            ownerName: "",
-            equipment: {},
-            backpack: []
-          };
+          const currentData = getTokenData(item.metadata);
           currentData.equipment[slot] = value;
-          item.metadata[METADATA_KEY] = currentData;
+          item.metadata[METADATA_KEY] = currentData as unknown as Record<string, unknown>;
         }
       });
     });
@@ -404,16 +374,10 @@ OBR.onReady(async () => {
 
     await OBR.scene.items.updateItems([selectedTokenId], (items) => {
       for (let item of items) {
-        const currentData: TokenInventoryData = item.metadata[METADATA_KEY] || {
-          type: "character",
-          isLocked: false,
-          ownerName: "",
-          equipment: {},
-          backpack: []
-        };
+        const currentData = getTokenData(item.metadata);
         const newItem: Item = { id: crypto.randomUUID(), name, count };
         currentData.backpack = [...(currentData.backpack || []), newItem];
-        item.metadata[METADATA_KEY] = currentData;
+        item.metadata[METADATA_KEY] = currentData as unknown as Record<string, unknown>;
       }
     });
 
@@ -433,23 +397,9 @@ OBR.onReady(async () => {
 
       if (!sourceToken || !targetToken) return;
 
-      const sourceData: TokenInventoryData = sourceToken.metadata[METADATA_KEY] || {
-        type: "character",
-        isLocked: false,
-        ownerName: "",
-        equipment: {},
-        backpack: []
-      };
+      const sourceData = getTokenData(sourceToken.metadata);
+      const targetData = getTokenData(targetToken.metadata);
 
-      const targetData: TokenInventoryData = targetToken.metadata[METADATA_KEY] || {
-        type: "character",
-        isLocked: false,
-        ownerName: "",
-        equipment: {},
-        backpack: []
-      };
-
-      // Végső ellenőrzés: ha a játékos trükközne, akkor sem tud más zárolt tárhelyére pakolni
       if (!checkAccess(sourceData) || !checkAccess(targetData)) {
         console.warn("Nincs jogosultságod az áthelyezéshez!");
         return;
@@ -464,7 +414,7 @@ OBR.onReady(async () => {
         })
         .filter((i) => i.count > 0);
 
-      sourceToken.metadata[METADATA_KEY] = sourceData;
+      sourceToken.metadata[METADATA_KEY] = sourceData as unknown as Record<string, unknown>;
 
       targetData.backpack = targetData.backpack || [];
       const existingItem = targetData.backpack.find(
@@ -481,7 +431,7 @@ OBR.onReady(async () => {
         });
       }
 
-      targetToken.metadata[METADATA_KEY] = targetData;
+      targetToken.metadata[METADATA_KEY] = targetData as unknown as Record<string, unknown>;
     });
 
     updateSelection();
@@ -492,15 +442,9 @@ OBR.onReady(async () => {
 
     await OBR.scene.items.updateItems([selectedTokenId], (items) => {
       for (let item of items) {
-        const currentData: TokenInventoryData = item.metadata[METADATA_KEY] || {
-          type: "character",
-          isLocked: false,
-          ownerName: "",
-          equipment: {},
-          backpack: []
-        };
+        const currentData = getTokenData(item.metadata);
         currentData.backpack = (currentData.backpack || []).filter((i) => i.id !== itemId);
-        item.metadata[METADATA_KEY] = currentData;
+        item.metadata[METADATA_KEY] = currentData as unknown as Record<string, unknown>;
       }
     });
 
