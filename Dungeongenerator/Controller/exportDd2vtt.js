@@ -1,3 +1,5 @@
+import { translations, currentLang } from "./lang.js";
+
 export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
     const size = matrix.length;
     const los = [];
@@ -72,9 +74,9 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
 
     const areConnected = (s1, s2) => {
         return (s1.p1.x === s2.p1.x && s1.p1.y === s2.p1.y) ||
-               (s1.p1.x === s2.p2.x && s1.p1.y === s2.p2.y) ||
-               (s1.p2.x === s2.p1.x && s1.p2.y === s2.p1.y) ||
-               (s1.p2.x === s2.p2.x && s1.p2.y === s2.p2.y);
+            (s1.p1.x === s2.p2.x && s1.p1.y === s2.p2.y) ||
+            (s1.p2.x === s2.p1.x && s1.p2.y === s2.p1.y) ||
+            (s1.p2.x === s2.p2.x && s1.p2.y === s2.p2.y);
     };
 
     for (let i = 0; i < rawDoorSegments.length; i++) {
@@ -173,9 +175,11 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
     const blob = new Blob([jsonString], { type: "application/json" });
     const url = URL.createObjectURL(blob);
 
+    const defaultFileName = translations[currentLang].fileName;
+
     const a = document.createElement("a");
     a.href = url;
-    a.download = "generated_dungeon.dd2vtt";
+    a.download = `${defaultFileName}.dd2vtt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
