@@ -1,17 +1,18 @@
 import { tile } from "./tile.js";
-var rows, cols, cellSize, canvas = document.getElementById("dungeon");
-var tileSize = 20;
+var rows, cols, canvas = document.getElementById("dungeon");
+var tileSize = 20; // Egységes csempeméret
 var ctx = canvas.getContext("2d");
 var matrix;
 
-
 export function drawDungeon(map) {
     matrix = map;
-    canvas.width = map[0].length * tileSize;
-    canvas.height = map.length * tileSize;
-    rows = map[0].length;
-    cols = rows;
-    cellSize = canvas.width / cols; // 100 pixel cellánként
+    rows = map.length;          // Sorok száma (Y)
+    cols = map[0].length;       // Oszlopok száma (X)
+    
+    // Canvas belső felbontása
+    canvas.width = cols * tileSize;
+    canvas.height = rows * tileSize;
+
     let tiletypes = [];
     var i = 0;
     document.getElementsByName("color").forEach(element => {
@@ -20,28 +21,24 @@ export function drawDungeon(map) {
             if (wallElement.checked) {
                 wallElements.push(wallElement.value);
             }
-        })
+        });
         tiletypes.push(new tile(document.getElementById("color" + i).value, true, wallElements));
         i++;
     });
 
-    for (let y = 0; y < map.length; y++) {
-        for (let x = 0; x < map[y].length; x++) {
-
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
             switch (map[y][x]) {
                 case 0:
                     drawTile(x, y, tiletypes[0], map[y][x], tiletypes);
                     break;
-
                 case 1:
                     drawTile(x, y, tiletypes[1], map[y][x], tiletypes);
                     break;
-
                 case 2:
                     drawTile(x, y, tiletypes[2], map[y][x], tiletypes);
                     break;
             }
-
         }
     }
 }
@@ -49,164 +46,130 @@ export function drawDungeon(map) {
 function drawTile(x, y, tiletype, type, tiletypes) {
     ctx.fillStyle = tiletype.color;
     ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-    {
-        const roughness = 5;
-        // ==========================================
-        // 1. JOBB OLDAL
-        // ==========================================
-        // Ha a pálya szélén van, VAGY a szomszéd izolálva van
-        if (x + 1 <= matrix[0].length && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
+    
+    const roughness = 5;
+
+    // 1. JOBB OLDAL (Javított tömb-határ ellenőrzés: < cols)
+    if (x + 1 < cols && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+            let startY = y * tileSize + i * tileSize / 4;
+            let endY = y * tileSize + (i + 1) * tileSize / 4;
+            let edgeX = x * tileSize + tileSize;
+
+            ctx.beginPath();
+            ctx.moveTo(edgeX, startY);
+            ctx.bezierCurveTo(
+                edgeX - tileSize / 4 + Math.random() * roughness, startY,
+                edgeX - tileSize / 4 + Math.random() * roughness, endY,
+                edgeX, endY
+            );
+            ctx.lineTo(edgeX, startY);
+            ctx.closePath();
+
+            ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y][x + 1]].color : tiletype.color;
+            ctx.fill();
             ctx.strokeStyle = "black";
-            ctx.lineWidth = 1;
-            for (let i = 0; i < 4; i++) {
-                let startY = y * tileSize + i * tileSize / 4;
-                let endY = y * tileSize + (i + 1) * tileSize / 4;
-                let edgeX = x * tileSize + tileSize; // Jobb szél
-
-                ctx.beginPath();
-                ctx.moveTo(edgeX, startY);
-                ctx.bezierCurveTo(
-                    edgeX - tileSize / 4 + Math.random() * roughness, startY,
-                    edgeX - tileSize / 4 + Math.random() * roughness, endY,
-                    edgeX, endY
-                );
-                // 2. Lezárjuk a formát az egyenes jobb szél mentén vissza a kezdőpontig
-                ctx.lineTo(edgeX, startY);
-                ctx.closePath();
-
-                // 3. Kitöltjük a hullám és a szél közötti részt
-                if (tiletype == tiletypes[0]) {
-                    ctx.fillStyle = tiletypes[matrix[y][x + 1]].color; // Vagy amilyen színűre a kitöltést szeretnéd
-                }
-                else {
-                    ctx.fillStyle = tiletype.color; // Vagy amilyen színűre a kitöltést szeretnéd
-                }
-                ctx.fill();
-
-                // 4. Meghúzzuk a fekete körvonalat is a tetejére (opcionális, de szebb)
-                ctx.strokeStyle = "black";
-                ctx.stroke();
-            }
+            ctx.stroke();
         }
+    }
 
-        // ==========================================
-        // 2. BAL OLDAL
-        // ==========================================
-        if (x - 1 >= 0 && tiletype.isIsolatedFrom(matrix[y][x - 1])) {
+    // 2. BAL OLDAL
+    if (x - 1 >= 0 && tiletype.isIsolatedFrom(matrix[y][x - 1])) {
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+            let startY = y * tileSize + i * tileSize / 4;
+            let endY = y * tileSize + (i + 1) * tileSize / 4;
+            let edgeX = x * tileSize;
+
+            ctx.beginPath();
+            ctx.moveTo(edgeX, startY);
+            ctx.bezierCurveTo(
+                edgeX + tileSize / 4 - Math.random() * roughness, startY,
+                edgeX + tileSize / 4 - Math.random() * roughness, endY,
+                edgeX, endY
+            );
+            ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y][x - 1]].color : tiletype.color;
+            ctx.fill();
             ctx.strokeStyle = "black";
-            ctx.lineWidth = 1;
-            for (let i = 0; i < 4; i++) {
-                let startY = y * tileSize + i * tileSize / 4;
-                let endY = y * tileSize + (i + 1) * tileSize / 4;
-                let edgeX = x * tileSize; // Bal szél
-
-                ctx.beginPath();
-                ctx.moveTo(edgeX, startY);
-                ctx.bezierCurveTo(
-                    edgeX + tileSize / 4 - Math.random() * roughness, startY,
-                    edgeX + tileSize / 4 - Math.random() * roughness, endY,
-                    edgeX, endY
-                );
-                // 3. Kitöltjük a hullám és a szél közötti részt
-                if (tiletype == tiletypes[0]) {
-                    ctx.fillStyle = tiletypes[matrix[y][x - 1]].color; // Vagy amilyen színűre a kitöltést szeretnéd
-                }
-                else {
-                    ctx.fillStyle = ""; // Vagy amilyen színűre a kitöltést szeretnéd
-                }
-                ctx.fill();
-
-                // 4. Meghúzzuk a fekete körvonalat is a tetejére (opcionális, de szebb)
-                ctx.strokeStyle = "black";
-                ctx.stroke();
-            }
+            ctx.stroke();
         }
+    }
 
-        // ==========================================
-        // 3. FELSŐ OLDAL
-        // ==========================================
-        if (y - 1 >= 0 && tiletype.isIsolatedFrom(matrix[y - 1][x])) {
+    // 3. FELSŐ OLDAL
+    if (y - 1 >= 0 && tiletype.isIsolatedFrom(matrix[y - 1][x])) {
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+            let startX = x * tileSize + i * tileSize / 4;
+            let endX = x * tileSize + (i + 1) * tileSize / 4;
+            let edgeY = y * tileSize;
+
+            ctx.beginPath();
+            ctx.moveTo(startX, edgeY);
+            ctx.bezierCurveTo(
+                startX, edgeY + tileSize / 4 - Math.random() * roughness,
+                endX, edgeY + tileSize / 4 - Math.random() * roughness,
+                endX, edgeY
+            );
+            ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y - 1][x]].color : tiletype.color;
+            ctx.fill();
             ctx.strokeStyle = "black";
-            ctx.lineWidth = 1;
-            for (let i = 0; i < 4; i++) {
-                let startX = x * tileSize + i * tileSize / 4;
-                let endX = x * tileSize + (i + 1) * tileSize / 4;
-                let edgeY = y * tileSize; // Felső szél
-
-                ctx.beginPath();
-                ctx.moveTo(startX, edgeY);
-                ctx.bezierCurveTo(
-                    startX, edgeY + tileSize / 4 - Math.random() * roughness,
-                    endX, edgeY + tileSize / 4 - Math.random() * roughness,
-                    endX, edgeY
-                );
-                // 3. Kitöltjük a hullám és a szél közötti részt
-                if (tiletype == tiletypes[0]) {
-                    ctx.fillStyle = tiletypes[matrix[y - 1][x]].color; // Vagy amilyen színűre a kitöltést szeretnéd
-                }
-                else {
-                    ctx.fillStyle = ""; // Vagy amilyen színűre a kitöltést szeretnéd
-                }
-                ctx.fill();
-
-                // 4. Meghúzzuk a fekete körvonalat is a tetejére (opcionális, de szebb)
-                ctx.strokeStyle = "black";
-                ctx.stroke();
-            }
+            ctx.stroke();
         }
+    }
 
-        // ==========================================
-        // 4. ALSÓ OLDAL
-        // ==========================================
-        // JAVÍTVA: matrix.length-et nézünk matrix[0].length helyett
-        if (y + 1 < matrix.length && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
+    // 4. ALSÓ OLDAL
+    if (y + 1 < rows && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+            let startX = x * tileSize + i * tileSize / 4;
+            let endX = x * tileSize + (i + 1) * tileSize / 4;
+            let edgeY = y * tileSize + tileSize;
+
+            ctx.beginPath();
+            ctx.moveTo(startX, edgeY);
+            ctx.bezierCurveTo(
+                startX, edgeY - tileSize / 4 + Math.random() * roughness,
+                endX, edgeY - tileSize / 4 + Math.random() * roughness,
+                endX, edgeY
+            );
+            ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y + 1][x]].color : tiletype.color;
+            ctx.fill();
             ctx.strokeStyle = "black";
-            ctx.lineWidth = 1;
-            for (let i = 0; i < 4; i++) {
-                let startX = x * tileSize + i * tileSize / 4;
-                let endX = x * tileSize + (i + 1) * tileSize / 4;
-                let edgeY = y * tileSize + tileSize; // Alsó szél
-
-                ctx.beginPath();
-                ctx.moveTo(startX, edgeY);
-                ctx.bezierCurveTo(
-                    startX, edgeY - tileSize / 4 + Math.random() * roughness,
-                    endX, edgeY - tileSize / 4 + Math.random() * roughness,
-                    endX, edgeY
-                );
-                // 3. Kitöltjük a hullám és a szél közötti részt
-                if (tiletype == tiletypes[0]) {
-                    ctx.fillStyle = tiletypes[matrix[y + 1][x]].color;
-                }
-
-                ctx.fill();
-
-                // 4. Meghúzzuk a fekete körvonalat is a tetejére (opcionális, de szebb)
-                ctx.strokeStyle = "black";
-                ctx.stroke();
-            }
+            ctx.stroke();
         }
     }
 }
 
-let isDrawing = false; // Állapotjelző: le van-e nyomva az egér?
+let isDrawing = false;
 
-// Segédfüggvény: kiszámolja a cellát és módosítja a mátrixot
+// JAVÍTOTT EGÉRKEZELŐ SKÁLÁZÁSSAL ÉS HELYES INDEXELÉSSEL
 function handleTileClick(event) {
+    if (!matrix) return;
+
     const rect = canvas.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const clickY = event.clientY - rect.top;
+    
+    // Canvas skálázási arányok kiszámítása
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
 
-    const col = Math.floor(clickX / cellSize);
-    const row = Math.floor(clickY / cellSize);
+    // Egérpozíció leképezése a belső felbontásra
+    const clickX = (event.clientX - rect.left) * scaleX;
+    const clickY = (event.clientY - rect.top) * scaleY;
 
-    // Parse as integer to avoid string concatenation bugs
+    // Pontos oszlop (X) és sor (Y)
+    const col = Math.floor(clickX / tileSize);
+    const row = Math.floor(clickY / tileSize);
+
     const brush_size = parseInt(document.getElementById('brush_size').value, 10) || 0;
 
     const selectedRadio = document.querySelector('input[name="color"]:checked');
     if (!selectedRadio) return;
 
-    // Determine the new value once outside the loops
     let newValue;
     switch (selectedRadio.value) {
         case "folyosó": newValue = 1; break;
@@ -217,15 +180,15 @@ function handleTileClick(event) {
 
     let hasChanged = false;
 
-    // Calculate brush bounds safely within matrix limits
+    // Ecset határai
     const startCol = Math.max(0, col - brush_size);
     const endCol = Math.min(cols - 1, col + brush_size);
     const startRow = Math.max(0, row - brush_size);
     const endRow = Math.min(rows - 1, row + brush_size);
 
-    for (let c = startCol; c <= endCol; c++) {
-        for (let r = startRow; r <= endRow; r++) {
-            // Only update if the value actually changes
+    // HELYES INDEXELÉS: r = Sor (Y), c = Oszlop (X) -> matrix[r][c]
+    for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
             if (matrix[r][c] !== newValue) {
                 matrix[r][c] = newValue;
                 hasChanged = true;
@@ -233,31 +196,26 @@ function handleTileClick(event) {
         }
     }
 
-    // Redraw once after all cells in the brush radius are processed
     if (hasChanged) {
         drawDungeon(matrix);
     }
 }
 
-// 1. Egérgomb LENYOMÁSA (bekapcsoljuk a rajzolást)
 canvas.addEventListener('mousedown', (event) => {
     isDrawing = true;
-    handleTileClick(event); // Azonnal módosítjuk azt a cellát, ahová kattintottál
+    handleTileClick(event);
 });
 
-// 2. Egér MOZGATÁSA (ha le van nyomva a gomb, rajzolunk)
 canvas.addEventListener('mousemove', (event) => {
     if (isDrawing) {
         handleTileClick(event);
     }
 });
 
-// 3. Egérgomb FELENGEDÉSE (kikapcsoljuk a rajzolást)
 window.addEventListener('mouseup', () => {
     isDrawing = false;
 });
 
-// 4. Ha az egér ELHAGYJA a vásznat, álljon le a rajzolás
 canvas.addEventListener('mouseleave', () => {
     isDrawing = false;
 });
