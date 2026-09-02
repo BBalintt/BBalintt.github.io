@@ -201,21 +201,106 @@ function handleTileClick(event) {
     }
 }
 
+// Általánosító függvény, ami kezeli az egér és az érintés (touch) eseményeket is
+function getPointerPosition(event) {
+    // Ha touch eseményről van szó, az első ujj pozícióját vesszük
+    if (event.touches && event.touches.length > 0) {
+        return {
+            clientX: event.touches[0].clientX,
+            clientY: event.touches[0].clientY
+        };
+    }
+    return {
+        clientX: event.clientX,
+        clientY: event.clientY
+    };
+}
+
+// Egységesített kattintás/érintés kezelő
+function handleInteraction(event) {
+    if (!matrix) return;
+
+    // Egyujjas rajzolás támogatása (vagy egéresemény)
+    const pointer = getPointerPosition(event);
+    const rect = canvas.getBoundingClientRect();
+    
+    // Canvas skálázási arányok kiszámítása
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    // Pozíció leképezése a belső felbontásra
+    const clickX = (pointer.clientX - rect.left) * scaleX;
+    const clickY = (pointer.clientY - rect.top) * scaleY;
+
+    // Pontos oszlop (X) és sor (Y)
+    const col = Math.floor(clickX / tileSize);
+    const row = Math.floor(clickY / tileSize);
+
+    const brush_size = parseInt(document.getElementById('brush_size').value, 10) || 0;
+
+    const selectedRadio = document.querySelector('input[name="color"]:checked');
+    if (!selectedRadio) return;
+
+    let newValue;
+    switch (selectedRadio.value) {
+        case "folyosó": newValue = 1; break;
+        case "szoba": newValue = 2; break;
+        case "semmi": newValue = 0; break;
+        default: return;
+    }
+
+    let hasChanged = false;
+
+    // Ecset határai
+    const startCol = Math.max(0, col - brush_size);
+    const endCol = Math.min(cols - 1, col + brush_size);
+    const startRow = Math.max(0, row - brush_size);
+    const endRow = Math.min(rows - 1, row + brush_size);
+
+    for (let r = startRow; r <= endRow; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+            if (matrix[r][c] !== newValue) {
+                matrix[r][c] = newValue;
+                hasChanged = true;
+            }
+        }
+    }
+
+    if (hasChanged) {
+        drawDungeon(matrix);
+    }
+}
+
+// --- EGÉR ESEMÉNYEK ---
 canvas.addEventListener('mousedown', (event) => {
     isDrawing = true;
-    handleTileClick(event);
+    handleInteraction(event);
 });
 
 canvas.addEventListener('mousemove', (event) => {
     if (isDrawing) {
-        handleTileClick(event);
+        handleInteraction(event);
     }
 });
 
-window.addEventListener('mouseup', () => {
-    isDrawing = false;
-});
+window.addEventListener('mouseup', () => { isDrawing = false; });
+canvas.addEventListener('mouseleave', () => { isDrawing = false; });
 
-canvas.addEventListener('mouseleave', () => {
-    isDrawing = false;
-});
+// --- TOUCH (MOBIL) ESEMÉNYEK ---
+canvas.addEventListener('touchstart', (event) => {
+    if (event.touches.length === 1) { // Csak 1 ujj esetén rajzoljon
+        event.preventDefault(); // Megakadályozza az oldal görgetését
+        isDrawing = true;
+        handleInteraction(event);
+    }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (event) => {
+    if (isDrawing && event.touches.length === 1) {
+        event.preventDefault(); // Megakadályozza az oldal görgetését rajzolás közben
+        handleInteraction(event);
+    }
+}, { passive: false });
+
+window.addEventListener('touchend', () => { isDrawing = false; });
+canvas.addEventListener('touchcancel', () => { isDrawing = false; });
