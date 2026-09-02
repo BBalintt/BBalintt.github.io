@@ -39,6 +39,33 @@
                         data-i18n="corridor">Folyosó</span></label>
                 <label><input type="radio" name="color" value="szoba"> <span data-i18n="room">Szoba</span></label>
             </div>
+            <div class="control-group">
+                <h3 data-i18n="wallsHeader">Textúrák beállítása</h3>
+            
+                <label for="void-texture" data-i18n="voidTexture">Void / Háttér textúrája:</label>
+                <select id="void-texture">
+                    <option value="none" selected data-i18n="textureNone">Nincs (Tömör szín)</option>
+                    <option value="cobblestone" data-i18n="textureCobblestone">Sziklás / Kockakő (Cobblestone)</option>
+                    <option value="stone" data-i18n="textureStone">Kőpadló (Stone)</option>
+                    <option value="wood" data-i18n="textureWood">Fapadló (Wood)</option>
+                </select>
+                <br>
+                <label for="corridor-texture" data-i18n="corridorTexture">Folyosók textúrája:</label>
+                <select id="corridor-texture">
+                    <option value="none" selected data-i18n="textureNone">Nincs (Tömör szín)</option>
+                    <option value="cobblestone" data-i18n="textureCobblestone">Sziklás / Kockakő (Cobblestone)</option>
+                    <option value="stone" data-i18n="textureStone">Kőpadló (Stone)</option>
+                    <option value="wood" data-i18n="textureWood">Fapadló (Wood)</option>
+                </select>
+                <br>
+                <label for="room-texture" data-i18n="roomTexture">Szobák textúrája:</label>
+                <select id="room-texture">
+                    <option value="none" selected data-i18n="textureNone">Nincs (Tömör szín)</option>
+                    <option value="cobblestone" data-i18n="textureCobblestone">Sziklás / Kockakő (Cobblestone)</option>
+                    <option value="stone" data-i18n="textureStone">Kőpadló (Stone)</option>
+                    <option value="wood" data-i18n="textureWood">Fapadló (Wood)</option>
+                </select>
+            </div>
 
             <div>
                 <p data-i18n="wallsHeader" style="margin-bottom: 8px;">Falak/Ajtók:</p>

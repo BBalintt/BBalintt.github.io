@@ -1,4 +1,5 @@
 import { tile } from "./tile.js";
+import {drawCobblestoneTexture, drawStoneTexture, drawWoodTexture} from "./textures.js"
 var rows, cols, canvas = document.getElementById("dungeon");
 var tileSize = 20; // Egységes csempeméret
 var ctx = canvas.getContext("2d");
@@ -44,12 +45,40 @@ export function drawDungeon(map) {
 }
 
 function drawTile(x, y, tiletype, type, tiletypes) {
+    // 1. Alapszín kitöltése
     ctx.fillStyle = tiletype.color;
     ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
     
     const roughness = 5;
 
-    // 1. JOBB OLDAL (Javított tömb-határ ellenőrzés: < cols)
+    // 2. Textúra meghatározása a tiletype tulajdonságai alapján
+    let selectedTexture = "none";
+
+    // Csempe típusának azonosítása (a tiletype objektumból)
+    if (tiletype === tiletypes[2]) {
+        selectedTexture = document.getElementById('room-texture')?.value || "none";
+    } else if (tiletype === tiletypes[1]) {
+        selectedTexture = document.getElementById('corridor-texture')?.value || "none";
+    } else if (tiletype === tiletypes[0]) {
+        selectedTexture = document.getElementById('void-texture')?.value || "none";
+    }
+
+    // 3. Textúra kirajzolása
+    switch (selectedTexture) {
+        case "stone":
+            drawStoneTexture(ctx, x, y, tileSize, tiletype.color);
+            break;
+        case "wood":
+            drawWoodTexture(ctx, x, y, tileSize, tiletype.color);
+            break;
+        case "cobblestone":
+            drawCobblestoneTexture(ctx, x, y, tileSize, tiletype.color);
+            break;
+    }
+
+    // 4. Sziklás / Organikus szélek kirajzolása (Izolált szomszédok esetén)
+
+    // JOBB OLDAL
     if (x + 1 < cols && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
@@ -70,12 +99,11 @@ function drawTile(x, y, tiletype, type, tiletypes) {
 
             ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y][x + 1]].color : tiletype.color;
             ctx.fill();
-            ctx.strokeStyle = "black";
             ctx.stroke();
         }
     }
 
-    // 2. BAL OLDAL
+    // BAL OLDAL
     if (x - 1 >= 0 && tiletype.isIsolatedFrom(matrix[y][x - 1])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
@@ -93,12 +121,11 @@ function drawTile(x, y, tiletype, type, tiletypes) {
             );
             ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y][x - 1]].color : tiletype.color;
             ctx.fill();
-            ctx.strokeStyle = "black";
             ctx.stroke();
         }
     }
 
-    // 3. FELSŐ OLDAL
+    // FELSŐ OLDAL
     if (y - 1 >= 0 && tiletype.isIsolatedFrom(matrix[y - 1][x])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
@@ -116,12 +143,11 @@ function drawTile(x, y, tiletype, type, tiletypes) {
             );
             ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y - 1][x]].color : tiletype.color;
             ctx.fill();
-            ctx.strokeStyle = "black";
             ctx.stroke();
         }
     }
 
-    // 4. ALSÓ OLDAL
+    // ALSÓ OLDAL
     if (y + 1 < rows && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
         ctx.strokeStyle = "black";
         ctx.lineWidth = 1;
@@ -139,7 +165,6 @@ function drawTile(x, y, tiletype, type, tiletypes) {
             );
             ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y + 1][x]].color : tiletype.color;
             ctx.fill();
-            ctx.strokeStyle = "black";
             ctx.stroke();
         }
     }

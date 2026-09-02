@@ -173,6 +173,14 @@ document.querySelectorAll('.checkbox-matrix input[type="checkbox"]').forEach(che
     });
 });
 
+const textureSelectors = ['room-texture', 'corridor-texture', 'void-texture'];
+
+textureSelectors.forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+        drawDungeon(matrix); 
+    });
+});
+
 document.getElementById("exportBtn").addEventListener("click", () => {
     const canvas = document.getElementById("dungeon");
     exportToDd2vtt(matrix, canvas, tileSize);

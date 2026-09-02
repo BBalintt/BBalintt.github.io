@@ -4,6 +4,7 @@ export class tile
         this.color = color;
         this.border = border;
         this.isolatedFrom = isolatedFrom;
+        this.texture =0;
     }
 
     isIsolatedFrom(otherTile) {
