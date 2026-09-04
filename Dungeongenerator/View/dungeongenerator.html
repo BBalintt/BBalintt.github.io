@@ -14,8 +14,11 @@
         <div class="header-row">
             <h1 data-i18n="title">Dungeon Generátor</h1>
             <div class="lang-selector">
-                <button id="btn-hu">HU</button>
-                <button id="btn-en">EN</button>
+                <button id="btn-hu" type="button">HU</button>
+                <button id="btn-en" type="button">EN</button>
+                <button id="btn-de" type="button">DE</button>
+                <button id="btn-es" type="button">ES</button>
+                <button id="btn-fr" type="button">FR</button>
             </div>
         </div>
 
@@ -27,67 +30,10 @@
                 <input type="number" id="brush_size" value="0" min="0">
             </div>
 
-            <div class="control-row">
-                <input type="color" id="color0" value="#000000">
-                <input type="color" id="color1" value="#DAA06D">
-                <input type="color" id="color2" value="#E1C16E">
-            </div>
-
-            <div class="control-row">
-                <label><input type="radio" name="color" value="semmi"> <span data-i18n="void">Semmi</span></label>
-                <label><input type="radio" name="color" value="folyosó"> <span
-                        data-i18n="corridor">Folyosó</span></label>
-                <label><input type="radio" name="color" value="szoba"> <span data-i18n="room">Szoba</span></label>
-            </div>
-            <div class="control-group">
-                <h3 data-i18n="wallsHeader">Textúrák beállítása</h3>
+            <!-- Dinamikus Csempetípus Vezérlők -->
+            <div id="tile-controls-container"></div>
             
-                <label for="void-texture" data-i18n="voidTexture">Void / Háttér textúrája:</label>
-                <select id="void-texture">
-                    <option value="none" selected data-i18n="textureNone">Nincs (Tömör szín)</option>
-                    <option value="cobblestone" data-i18n="textureCobblestone">Sziklás / Kockakő (Cobblestone)</option>
-                    <option value="stone" data-i18n="textureStone">Kőpadló (Stone)</option>
-                    <option value="wood" data-i18n="textureWood">Fapadló (Wood)</option>
-                </select>
-                <br>
-                <label for="corridor-texture" data-i18n="corridorTexture">Folyosók textúrája:</label>
-                <select id="corridor-texture">
-                    <option value="none" selected data-i18n="textureNone">Nincs (Tömör szín)</option>
-                    <option value="cobblestone" data-i18n="textureCobblestone">Sziklás / Kockakő (Cobblestone)</option>
-                    <option value="stone" data-i18n="textureStone">Kőpadló (Stone)</option>
-                    <option value="wood" data-i18n="textureWood">Fapadló (Wood)</option>
-                </select>
-                <br>
-                <label for="room-texture" data-i18n="roomTexture">Szobák textúrája:</label>
-                <select id="room-texture">
-                    <option value="none" selected data-i18n="textureNone">Nincs (Tömör szín)</option>
-                    <option value="cobblestone" data-i18n="textureCobblestone">Sziklás / Kockakő (Cobblestone)</option>
-                    <option value="stone" data-i18n="textureStone">Kőpadló (Stone)</option>
-                    <option value="wood" data-i18n="textureWood">Fapadló (Wood)</option>
-                </select>
-            </div>
-
-            <div>
-                <p data-i18n="wallsHeader" style="margin-bottom: 8px;">Falak/Ajtók:</p>
-                <div class="checkbox-matrix">
-                    <div class="control-row">
-                        <label><input type="checkbox" name="walls0" value="1"> <span
-                                data-i18n="corridor">Folyosó</span></label>
-                        <label><input type="checkbox" name="walls1" value="2"> <span
-                                data-i18n="room">Szoba</span></label>
-                        <label><input type="checkbox" name="walls2" value="0"> <span
-                                data-i18n="void">Semmi</span></label>
-                    </div>
-                    <div class="control-row">
-                        <label><input type="checkbox" name="walls0" value="2"> <span
-                                data-i18n="room">Szoba</span></label>
-                        <label><input type="checkbox" name="walls1" value="0"> <span
-                                data-i18n="void">Semmi</span></label>
-                        <label><input type="checkbox" name="walls2" value="1"> <span
-                                data-i18n="corridor">Folyosó</span></label>
-                    </div>
-                </div>
-            </div>
+            <button id="addTileBtn" data-i18n="addTileBtn" style="margin-top: 10px;">+ Új csempe típus hozzáadása</button>
         </div>
 
         <button id="exportBtn" data-i18n="exportBtn">Exportálás DD2VTT-be</button>

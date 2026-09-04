@@ -1,69 +1,121 @@
+export let currentLang = localStorage.getItem("app_lang") || "hu";
+
 export const translations = {
     hu: {
-        exportBtn: "Exportálás DD2VTT-be",
-        fileName: "generalt_dungeon",
+        docTitle: "Térkép Generátor",
         title: "Dungeon Generátor",
-        generateBtn: "Új Dungeon Generálása",
-        brushSize: "Ecset mérete",
-        room: "szoba",
-        corridor: "folyósó",
-        void: "semmi",
-        wallsHeader: "Fal textúra",
-        // Új textúra és UI kulcsok
-        roomTexture: "Szobák textúrája",
-        corridorTexture: "Folyosók textúrája",
-        voidTexture: "Void / Háttér textúrája",
-        textureNone: "Nincs (Tömör szín)",
-        textureStone: "Kőpadló",
-        textureWood: "Fapadló",
-        textureCobblestone: "Sziklás / Kockakő",
-        languageLabel: "Nyelv"
+        brushSize: "Ecset méret:",
+        exportBtn: "Exportálás DD2VTT-be",
+        fileName: "dungeon_terkep",
+        selectActiveTile: "Szerkesztett / Aktív csempe:",
+        addTileBtn: "+ Új csempetípus hozzáadása",
+        deleteTileBtn: "Típus törlése",
+        tileNameLabel: "Név:",
+        isFloorLabel: "Járható padló (DD2VTT LoS)",
+        wallsTowardsLabel: "Falat von ezek felé:",
+        noOtherTiles: "Nincs más típus",
+        texNone: "Sima",
+        texStone: "Kőpadló",
+        texWood: "Fapadló",
+        texCobble: "Kockakő",
+        tileNothing: "Semmi",
+        tileCorridor: "Folyosó",
+        tileRoom: "Szoba",
+        newTileDefaultName: "Új típus"
     },
     en: {
-        exportBtn: "Export to DD2VTT",
-        fileName: "generated_dungeon",
+        docTitle: "Map Generator",
         title: "Dungeon Generator",
-        generateBtn: "Generate New Dungeon",
-        brushSize: "Brush size",
-        room: "room",
-        corridor: "corridor",
-        void: "void",
-        wallsHeader: "Wall texture",
-        // New texture & UI keys
-        roomTexture: "Room texture",
-        corridorTexture: "Corridor texture",
-        voidTexture: "Void / Background texture",
-        textureNone: "None (Solid Color)",
-        textureStone: "Stone Floor",
-        textureWood: "Wood Floor",
-        textureCobblestone: "Cobblestone / Rocky",
-        languageLabel: "Language"
+        brushSize: "Brush size:",
+        exportBtn: "Export to DD2VTT",
+        fileName: "dungeon_map",
+        selectActiveTile: "Edited / Active Tile:",
+        addTileBtn: "+ Add New Tile Type",
+        deleteTileBtn: "Delete Type",
+        tileNameLabel: "Name:",
+        isFloorLabel: "Walkable Floor (DD2VTT LoS)",
+        wallsTowardsLabel: "Draws walls towards:",
+        noOtherTiles: "No other types",
+        texNone: "Plain",
+        texStone: "Stone Floor",
+        texWood: "Wood Floor",
+        texCobble: "Cobblestone",
+        tileNothing: "Nothing",
+        tileCorridor: "Corridor",
+        tileRoom: "Room",
+        newTileDefaultName: "New Type"
+    },
+    de: {
+        docTitle: "Karten-Generator",
+        title: "Dungeon-Generator",
+        brushSize: "Pinselgröße:",
+        exportBtn: "Als DD2VTT exportieren",
+        fileName: "dungeon_karte",
+        selectActiveTile: "Bearbeitete / Aktive Kachel:",
+        addTileBtn: "+ Neue Kachel hinzufügen",
+        deleteTileBtn: "Typ löschen",
+        tileNameLabel: "Name:",
+        isFloorLabel: "Begehbarer Boden (DD2VTT LoS)",
+        wallsTowardsLabel: "Zieht Wände zu:",
+        noOtherTiles: "Keine anderen Typen",
+        texNone: "Einfach",
+        texStone: "Steinboden",
+        texWood: "Holzboden",
+        texCobble: "Kopfsteinpflaster",
+        tileNothing: "Nichts",
+        tileCorridor: "Korridor",
+        tileRoom: "Raum",
+        newTileDefaultName: "Neuer Typ"
+    },
+    es: {
+        docTitle: "Generador de Mapas",
+        title: "Generador de Mazmorras",
+        brushSize: "Tamaño de pincel:",
+        exportBtn: "Exportar a DD2VTT",
+        fileName: "mapa_mazmorra",
+        selectActiveTile: "Casilla Editada / Activa:",
+        addTileBtn: "+ Añadir Nuevo Tipo de Casilla",
+        deleteTileBtn: "Eliminar Tipo",
+        tileNameLabel: "Nombre:",
+        isFloorLabel: "Suelo Transitable (DD2VTT LoS)",
+        wallsTowardsLabel: "Dibuja paredes hacia:",
+        noOtherTiles: "Sin otros tipos",
+        texNone: "Liso",
+        texStone: "Suelo de Piedra",
+        texWood: "Suelo de Madera",
+        texCobble: "Adoquín",
+        tileNothing: "Nada",
+        tileCorridor: "Pasillo",
+        tileRoom: "Habitación",
+        newTileDefaultName: "Nuevo Tipo"
+    },
+    fr: {
+        docTitle: "Générateur de Cartes",
+        title: "Générateur de Donjon",
+        brushSize: "Taille du pinceau :",
+        exportBtn: "Exporter vers DD2VTT",
+        fileName: "carte_donjon",
+        selectActiveTile: "Tuile Éditée / Active :",
+        addTileBtn: "+ Ajouter un Type de Tuile",
+        deleteTileBtn: "Supprimer le Type",
+        tileNameLabel: "Nom :",
+        isFloorLabel: "Sol Marchable (DD2VTT LoS)",
+        wallsTowardsLabel: "Trace des murs vers :",
+        noOtherTiles: "Aucun autre type",
+        texNone: "Uni",
+        texStone: "Sol en Pierre",
+        texWood: "Plancher en Bois",
+        texCobble: "Pavés",
+        tileNothing: "Rien",
+        tileCorridor: "Couloir",
+        tileRoom: "Pièce",
+        newTileDefaultName: "Nouveau Type"
     }
 };
-
-export let currentLang = "hu";
 
 export function setLanguage(lang) {
     if (translations[lang]) {
         currentLang = lang;
-        applyTranslations();
+        localStorage.setItem("app_lang", lang);
     }
-}
-
-// Végigmegy a HTML-ben lévő data-i18n attribútumokon és átírja a szövegeket
-export function applyTranslations() {
-    const dict = translations[currentLang];
-    if (!dict) return;
-
-    document.querySelectorAll("[data-i18n]").forEach((el) => {
-        const key = el.getAttribute("data-i18n");
-        if (dict[key]) {
-            // Ha gomb vagy beviteli mező placeholder-e, vagy sima elem szövege
-            if (el.tagName === "INPUT" && el.type === "button") {
-                el.value = dict[key];
-            } else {
-                el.textContent = dict[key];
-            }
-        }
-    });
 }

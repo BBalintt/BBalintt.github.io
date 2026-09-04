@@ -1,331 +1,215 @@
-import { tile } from "./tile.js";
-import {drawCobblestoneTexture, drawStoneTexture, drawWoodTexture} from "./textures.js"
-var rows, cols, canvas = document.getElementById("dungeon");
-var tileSize = 20; // Egységes csempeméret
-var ctx = canvas.getContext("2d");
-var matrix;
+import { tiletypes } from "../Controller/tileRegistry.js";
+import { drawStoneTexture, drawWoodTexture, drawCobblestoneTexture } from "./textures.js";
 
-export function drawDungeon(map) {
-    matrix = map;
-    rows = map.length;          // Sorok száma (Y)
-    cols = map[0].length;       // Oszlopok száma (X)
-    
-    // Canvas belső felbontása
+let isDrawingScheduled = false;
+const roughness = 6;
+
+// Fast Jitter Lookup Table
+const JITTER_TABLE_SIZE = 1024;
+const JITTER_TABLE = new Float32Array(JITTER_TABLE_SIZE);
+for (let i = 0; i < JITTER_TABLE_SIZE; i++) {
+    JITTER_TABLE[i] = Math.random() * roughness;
+}
+
+function getFastJitter(x, y, i, side) {
+    const index = (x * 31 + y * 17 + i * 7 + side * 13) & (JITTER_TABLE_SIZE - 1);
+    return JITTER_TABLE[index];
+}
+
+export function scheduleDraw(matrix) {
+    if (!isDrawingScheduled) {
+        isDrawingScheduled = true;
+        requestAnimationFrame(() => {
+            drawDungeon(matrix);
+            isDrawingScheduled = false;
+        });
+    }
+}
+
+export function drawDungeon(matrix) {
+    const canvas = document.getElementById("dungeon");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const tileSize = 32;
+
+    const rows = matrix.length;
+    const cols = matrix[0].length;
+
     canvas.width = cols * tileSize;
     canvas.height = rows * tileSize;
 
-    let tiletypes = [];
-    var i = 0;
-    document.getElementsByName("color").forEach(element => {
-        var wallElements = [];
-        document.getElementsByName("walls" + i).forEach(wallElement => {
-            if (wallElement.checked) {
-                wallElements.push(wallElement.value);
+    // Tiszta háttér biztosítása
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const tileLookup = new Map(tiletypes.map(t => [t.id, t]));
+
+    // 1. LÉPÉS: Csempék és textúrák
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const tileId = matrix[y][x];
+            const tileObj = tileLookup.get(tileId);
+
+            if (tileObj && tileId !== 0) { // Ne rajzoljunk üres tile-ra (ID: 0)
+                renderTileWithTexture(ctx, x, y, tileSize, tileObj);
             }
-        });
-        tiletypes.push(new tile(document.getElementById("color" + i).value, true, wallElements));
-        i++;
-    });
+        }
+    }
+
+    // 2. LÉPÉS: Falak (Kizárólag valid szomszédos izoláció esetén)
+    drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
+}
+
+function renderTileWithTexture(ctx, x, y, tileSize, tileObj) {
+    const px = x * tileSize;
+    const py = y * tileSize;
+
+    ctx.fillStyle = tileObj.color;
+    // 0.5px-es túlfedés a Canvas anti-aliasing fekete résvonalainak elkerülésére
+    ctx.fillRect(px, py, tileSize + 0.5, tileSize + 0.5);
+
+    switch (tileObj.texture) {
+        case "stone":
+            drawStoneTexture(ctx, x, y, tileSize, tileObj.color);
+            break;
+        case "wood":
+            drawWoodTexture(ctx, x, y, tileSize);
+            break;
+        case "cobblestone":
+            drawCobblestoneTexture(ctx, x, y, tileSize, tileObj.color);
+            break;
+        default:
+            break;
+    }
+}
+
+function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
+    const quarterSize = tileSize / 4;
+    const defaultTileColor = tiletypes[0] ? tiletypes[0].color : "#000000";
+    const colorBatches = new Map();
+
+    function getBatchPath(color) {
+        if (!colorBatches.has(color)) {
+            colorBatches.set(color, []);
+        }
+        return colorBatches.get(color);
+    }
 
     for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
-            switch (map[y][x]) {
-                case 0:
-                    drawTile(x, y, tiletypes[0], map[y][x], tiletypes);
-                    break;
-                case 1:
-                    drawTile(x, y, tiletypes[1], map[y][x], tiletypes);
-                    break;
-                case 2:
-                    drawTile(x, y, tiletypes[2], map[y][x], tiletypes);
-                    break;
+            const tileId = matrix[y][x];
+            // Üres mezőre vagy érvénytelen tile-ra ne rajzoljunk falat!
+            if (tileId === 0) continue;
+
+            const tiletype = tileLookup.get(tileId);
+            if (!tiletype || typeof tiletype.isIsolatedFrom !== "function") continue;
+
+            const baseX = x * tileSize;
+            const baseY = y * tileSize;
+
+            // JOBB OLDAL
+            if (x + 1 < cols) {
+                const neighborId = matrix[y][x + 1];
+                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
+                    const edgeX = baseX + tileSize;
+                    const neighborTile = tileLookup.get(neighborId);
+                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                    const pathList = getBatchPath(fillColor);
+
+                    for (let i = 0; i < 4; i++) {
+                        const startY = baseY + i * quarterSize;
+                        const endY = startY + quarterSize;
+                        pathList.push({
+                            x0: edgeX, y0: startY,
+                            cp1x: edgeX - quarterSize + getFastJitter(x, y, i, 1), cp1y: startY,
+                            cp2x: edgeX - quarterSize + getFastJitter(x, y, i, 2), cp2y: endY,
+                            x1: edgeX, y1: endY
+                        });
+                    }
+                }
             }
-        }
-    }
-}
 
-function drawTile(x, y, tiletype, type, tiletypes) {
-    // 1. Alapszín kitöltése
-    ctx.fillStyle = tiletype.color;
-    ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-    
-    const roughness = 5;
+            // BAL OLDAL
+            if (x - 1 >= 0) {
+                const neighborId = matrix[y][x - 1];
+                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
+                    const edgeX = baseX;
+                    const neighborTile = tileLookup.get(neighborId);
+                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                    const pathList = getBatchPath(fillColor);
 
-    // 2. Textúra meghatározása a tiletype tulajdonságai alapján
-    let selectedTexture = "none";
+                    for (let i = 0; i < 4; i++) {
+                        const startY = baseY + i * quarterSize;
+                        const endY = startY + quarterSize;
+                        pathList.push({
+                            x0: edgeX, y0: startY,
+                            cp1x: edgeX + quarterSize - getFastJitter(x, y, i, 3), cp1y: startY,
+                            cp2x: edgeX + quarterSize - getFastJitter(x, y, i, 4), cp2y: endY,
+                            x1: edgeX, y1: endY
+                        });
+                    }
+                }
+            }
 
-    // Csempe típusának azonosítása (a tiletype objektumból)
-    if (tiletype === tiletypes[2]) {
-        selectedTexture = document.getElementById('room-texture')?.value || "none";
-    } else if (tiletype === tiletypes[1]) {
-        selectedTexture = document.getElementById('corridor-texture')?.value || "none";
-    } else if (tiletype === tiletypes[0]) {
-        selectedTexture = document.getElementById('void-texture')?.value || "none";
-    }
+            // FELSŐ OLDAL
+            if (y - 1 >= 0) {
+                const neighborId = matrix[y - 1][x];
+                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
+                    const edgeY = baseY;
+                    const neighborTile = tileLookup.get(neighborId);
+                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                    const pathList = getBatchPath(fillColor);
 
-    // 3. Textúra kirajzolása
-    switch (selectedTexture) {
-        case "stone":
-            drawStoneTexture(ctx, x, y, tileSize, tiletype.color);
-            break;
-        case "wood":
-            drawWoodTexture(ctx, x, y, tileSize, tiletype.color);
-            break;
-        case "cobblestone":
-            drawCobblestoneTexture(ctx, x, y, tileSize, tiletype.color);
-            break;
-    }
+                    for (let i = 0; i < 4; i++) {
+                        const startX = baseX + i * quarterSize;
+                        const endX = startX + quarterSize;
+                        pathList.push({
+                            x0: startX, y0: edgeY,
+                            cp1x: startX, cp1y: edgeY + quarterSize - getFastJitter(x, y, i, 5),
+                            cp2x: endX, cp2y: edgeY + quarterSize - getFastJitter(x, y, i, 6),
+                            x1: endX, y1: edgeY
+                        });
+                    }
+                }
+            }
 
-    // 4. Sziklás / Organikus szélek kirajzolása (Izolált szomszédok esetén)
+            // ALSÓ OLDAL
+            if (y + 1 < rows) {
+                const neighborId = matrix[y + 1][x];
+                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
+                    const edgeY = baseY + tileSize;
+                    const neighborTile = tileLookup.get(neighborId);
+                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                    const pathList = getBatchPath(fillColor);
 
-    // JOBB OLDAL
-    if (x + 1 < cols && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 4; i++) {
-            let startY = y * tileSize + i * tileSize / 4;
-            let endY = y * tileSize + (i + 1) * tileSize / 4;
-            let edgeX = x * tileSize + tileSize;
-
-            ctx.beginPath();
-            ctx.moveTo(edgeX, startY);
-            ctx.bezierCurveTo(
-                edgeX - tileSize / 4 + Math.random() * roughness, startY,
-                edgeX - tileSize / 4 + Math.random() * roughness, endY,
-                edgeX, endY
-            );
-            ctx.lineTo(edgeX, startY);
-            ctx.closePath();
-
-            ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y][x + 1]].color : tiletype.color;
-            ctx.fill();
-            ctx.stroke();
-        }
-    }
-
-    // BAL OLDAL
-    if (x - 1 >= 0 && tiletype.isIsolatedFrom(matrix[y][x - 1])) {
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 4; i++) {
-            let startY = y * tileSize + i * tileSize / 4;
-            let endY = y * tileSize + (i + 1) * tileSize / 4;
-            let edgeX = x * tileSize;
-
-            ctx.beginPath();
-            ctx.moveTo(edgeX, startY);
-            ctx.bezierCurveTo(
-                edgeX + tileSize / 4 - Math.random() * roughness, startY,
-                edgeX + tileSize / 4 - Math.random() * roughness, endY,
-                edgeX, endY
-            );
-            ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y][x - 1]].color : tiletype.color;
-            ctx.fill();
-            ctx.stroke();
-        }
-    }
-
-    // FELSŐ OLDAL
-    if (y - 1 >= 0 && tiletype.isIsolatedFrom(matrix[y - 1][x])) {
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 4; i++) {
-            let startX = x * tileSize + i * tileSize / 4;
-            let endX = x * tileSize + (i + 1) * tileSize / 4;
-            let edgeY = y * tileSize;
-
-            ctx.beginPath();
-            ctx.moveTo(startX, edgeY);
-            ctx.bezierCurveTo(
-                startX, edgeY + tileSize / 4 - Math.random() * roughness,
-                endX, edgeY + tileSize / 4 - Math.random() * roughness,
-                endX, edgeY
-            );
-            ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y - 1][x]].color : tiletype.color;
-            ctx.fill();
-            ctx.stroke();
-        }
-    }
-
-    // ALSÓ OLDAL
-    if (y + 1 < rows && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 4; i++) {
-            let startX = x * tileSize + i * tileSize / 4;
-            let endX = x * tileSize + (i + 1) * tileSize / 4;
-            let edgeY = y * tileSize + tileSize;
-
-            ctx.beginPath();
-            ctx.moveTo(startX, edgeY);
-            ctx.bezierCurveTo(
-                startX, edgeY - tileSize / 4 + Math.random() * roughness,
-                endX, edgeY - tileSize / 4 + Math.random() * roughness,
-                endX, edgeY
-            );
-            ctx.fillStyle = (tiletype == tiletypes[0]) ? tiletypes[matrix[y + 1][x]].color : tiletype.color;
-            ctx.fill();
-            ctx.stroke();
-        }
-    }
-}
-
-let isDrawing = false;
-
-// JAVÍTOTT EGÉRKEZELŐ SKÁLÁZÁSSAL ÉS HELYES INDEXELÉSSEL
-function handleTileClick(event) {
-    if (!matrix) return;
-
-    const rect = canvas.getBoundingClientRect();
-    
-    // Canvas skálázási arányok kiszámítása
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    // Egérpozíció leképezése a belső felbontásra
-    const clickX = (event.clientX - rect.left) * scaleX;
-    const clickY = (event.clientY - rect.top) * scaleY;
-
-    // Pontos oszlop (X) és sor (Y)
-    const col = Math.floor(clickX / tileSize);
-    const row = Math.floor(clickY / tileSize);
-
-    const brush_size = parseInt(document.getElementById('brush_size').value, 10) || 0;
-
-    const selectedRadio = document.querySelector('input[name="color"]:checked');
-    if (!selectedRadio) return;
-
-    let newValue;
-    switch (selectedRadio.value) {
-        case "folyosó": newValue = 1; break;
-        case "szoba": newValue = 2; break;
-        case "semmi": newValue = 0; break;
-        default: return;
-    }
-
-    let hasChanged = false;
-
-    // Ecset határai
-    const startCol = Math.max(0, col - brush_size);
-    const endCol = Math.min(cols - 1, col + brush_size);
-    const startRow = Math.max(0, row - brush_size);
-    const endRow = Math.min(rows - 1, row + brush_size);
-
-    // HELYES INDEXELÉS: r = Sor (Y), c = Oszlop (X) -> matrix[r][c]
-    for (let r = startRow; r <= endRow; r++) {
-        for (let c = startCol; c <= endCol; c++) {
-            if (matrix[r][c] !== newValue) {
-                matrix[r][c] = newValue;
-                hasChanged = true;
+                    for (let i = 0; i < 4; i++) {
+                        const startX = baseX + i * quarterSize;
+                        const endX = startX + quarterSize;
+                        pathList.push({
+                            x0: startX, y0: edgeY,
+                            cp1x: startX, cp1y: edgeY - quarterSize + getFastJitter(x, y, i, 7),
+                            cp2x: endX, cp2y: edgeY - quarterSize + getFastJitter(x, y, i, 8),
+                            x1: endX, y1: edgeY
+                        });
+                    }
+                }
             }
         }
     }
 
-    if (hasChanged) {
-        drawDungeon(matrix);
-    }
-}
+    // Kirajzolás
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "black";
 
-// Általánosító függvény, ami kezeli az egér és az érintés (touch) eseményeket is
-function getPointerPosition(event) {
-    // Ha touch eseményről van szó, az első ujj pozícióját vesszük
-    if (event.touches && event.touches.length > 0) {
-        return {
-            clientX: event.touches[0].clientX,
-            clientY: event.touches[0].clientY
-        };
-    }
-    return {
-        clientX: event.clientX,
-        clientY: event.clientY
-    };
-}
-
-// Egységesített kattintás/érintés kezelő
-function handleInteraction(event) {
-    if (!matrix) return;
-
-    // Egyujjas rajzolás támogatása (vagy egéresemény)
-    const pointer = getPointerPosition(event);
-    const rect = canvas.getBoundingClientRect();
-    
-    // Canvas skálázási arányok kiszámítása
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    // Pozíció leképezése a belső felbontásra
-    const clickX = (pointer.clientX - rect.left) * scaleX;
-    const clickY = (pointer.clientY - rect.top) * scaleY;
-
-    // Pontos oszlop (X) és sor (Y)
-    const col = Math.floor(clickX / tileSize);
-    const row = Math.floor(clickY / tileSize);
-
-    const brush_size = parseInt(document.getElementById('brush_size').value, 10) || 0;
-
-    const selectedRadio = document.querySelector('input[name="color"]:checked');
-    if (!selectedRadio) return;
-
-    let newValue;
-    switch (selectedRadio.value) {
-        case "folyosó": newValue = 1; break;
-        case "szoba": newValue = 2; break;
-        case "semmi": newValue = 0; break;
-        default: return;
-    }
-
-    let hasChanged = false;
-
-    // Ecset határai
-    const startCol = Math.max(0, col - brush_size);
-    const endCol = Math.min(cols - 1, col + brush_size);
-    const startRow = Math.max(0, row - brush_size);
-    const endRow = Math.min(rows - 1, row + brush_size);
-
-    for (let r = startRow; r <= endRow; r++) {
-        for (let c = startCol; c <= endCol; c++) {
-            if (matrix[r][c] !== newValue) {
-                matrix[r][c] = newValue;
-                hasChanged = true;
-            }
+    colorBatches.forEach((shapes, color) => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        for (let i = 0; i < shapes.length; i++) {
+            const s = shapes[i];
+            ctx.moveTo(s.x0, s.y0);
+            ctx.bezierCurveTo(s.cp1x, s.cp1y, s.cp2x, s.cp2y, s.x1, s.y1);
+            ctx.lineTo(s.x0, s.y0);
         }
-    }
-
-    if (hasChanged) {
-        drawDungeon(matrix);
-    }
+        ctx.fill();
+        ctx.stroke();
+    });
 }
-
-// --- EGÉR ESEMÉNYEK ---
-canvas.addEventListener('mousedown', (event) => {
-    isDrawing = true;
-    handleInteraction(event);
-});
-
-canvas.addEventListener('mousemove', (event) => {
-    if (isDrawing) {
-        handleInteraction(event);
-    }
-});
-
-window.addEventListener('mouseup', () => { isDrawing = false; });
-canvas.addEventListener('mouseleave', () => { isDrawing = false; });
-
-// --- TOUCH (MOBIL) ESEMÉNYEK ---
-canvas.addEventListener('touchstart', (event) => {
-    if (event.touches.length === 1) { // Csak 1 ujj esetén rajzoljon
-        event.preventDefault(); // Megakadályozza az oldal görgetését
-        isDrawing = true;
-        handleInteraction(event);
-    }
-}, { passive: false });
-
-canvas.addEventListener('touchmove', (event) => {
-    if (isDrawing && event.touches.length === 1) {
-        event.preventDefault(); // Megakadályozza az oldal görgetését rajzolás közben
-        handleInteraction(event);
-    }
-}, { passive: false });
-
-window.addEventListener('touchend', () => { isDrawing = false; });
-canvas.addEventListener('touchcancel', () => { isDrawing = false; });

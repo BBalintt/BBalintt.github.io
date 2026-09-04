@@ -1,8 +1,9 @@
 import { translations, currentLang, setLanguage } from "./lang.js";
 import { exportToDd2vtt } from "./exportDd2vtt.js";
-import { drawDungeon } from "../View/draw.js";
+import { drawDungeon, scheduleDraw } from "../View/draw.js";
+import { tiletypes, activeTileId, setActiveTileId, createNewTileType, removeTileType, toggleIsolation } from "./tileRegistry.js";
 
-// DOM elemek frissítése a kiválasztott nyelvre
+// --- NYELVI BEÁLLÍTÁSOK KULCSAI ÉS RENDSZERE ---
 function updateUI() {
     const langData = translations[currentLang];
     document.querySelectorAll("[data-i18n]").forEach(element => {
@@ -11,177 +12,320 @@ function updateUI() {
             element.textContent = langData[key];
         }
     });
+    renderTileControls();
 }
 
-// 1. Automatizált nyelvdetektálás az oldal betöltésekor
-const userLang = navigator.language || navigator.userLanguage;
-if (userLang.startsWith("en")) {
-    setLanguage("en");
-} else {
-    setLanguage("hu");
+if (!localStorage.getItem("app_lang")) {
+    const userLang = (navigator.language || navigator.userLanguage).slice(0, 2);
+    if (["en", "de", "es", "fr", "hu"].includes(userLang)) {
+        setLanguage(userLang);
+    } else {
+        setLanguage("en");
+    }
 }
-updateUI();
 
-// 2. Gomb-eseménykezelők bekötése
-document.getElementById("btn-hu").addEventListener("click", () => {
-    setLanguage("hu");
-    updateUI();
+["hu", "en", "de", "es", "fr"].forEach(lang => {
+    const btn = document.getElementById(`btn-${lang}`);
+    if (btn) {
+        btn.addEventListener("click", () => {
+            setLanguage(lang);
+            updateUI();
+        });
+    }
 });
 
-document.getElementById("btn-en").addEventListener("click", () => {
-    setLanguage("en");
-    updateUI();
-});
-
-// ... (A generáló kódod többi része és az exportBtn eseménykezelője)
-var rooms = [];
-
-for (let i = 0; i </*Math.round(Math.random()*700)+*/30; i++) {
-    var x = Math.round(Math.random() * 5) + 1;
-    var y = Math.round(Math.random() * 5) + 1;
-    const room = {
-        id: i,
-        height: x, // Sorok száma
-        width: y,  // Oszlopok száma
-        matrix: [],
-        centerx: 0,
-        centery: 0,
-        connected_to: false
-    };
-    rooms.push(room);
-}
-
-
+// --- DUNGEON MÁTRIX ÉS FOLYOSÓ GENERÁLÁS ---
 let size = 50;
 const matrix = Array.from({ length: size }, () => Array(size).fill(0));
 
+var rooms = [];
+for (let i = 0; i < 30; i++) {
+    var x = Math.round(Math.random() * 5) + 1;
+    var y = Math.round(Math.random() * 5) + 1;
+    rooms.push({
+        id: i, height: x, width: y,
+        centerx: 0, centery: 0, connected_to: false
+    });
+}
+
+// 1. Szobák elhelyezése
 rooms.forEach(room => {
-    x = Math.round(Math.random() * (size - room.height))
-    y = Math.round(Math.random() * (size - room.width))
+    let x = Math.round(Math.random() * (size - room.height));
+    let y = Math.round(Math.random() * (size - room.width));
     while (!isAreaEmpty(x, y, room.height, room.width, matrix, size)) {
         x = Math.floor(Math.random() * (size - room.height + 1));
         y = Math.floor(Math.random() * (size - room.width + 1));
     }
     for (let i = x; i < x + room.height; i++) {
         for (let j = y; j < y + room.width; j++) {
-            matrix[i][j] = 2;
+            matrix[i][j] = 2; // Szoba (ID: 2)
         }
     }
     room.centerx = x + (room.height / 2);
     room.centery = y + (room.width / 2);
 });
 
+// 2. Folyosók összekötése
 rooms.forEach(room => {
-    // 1. Létrehozunk egy listát a TÖBBI szobából (az aktuálisat kiszűrjük)
-    // Így nem bántjuk az eredeti 'rooms' tömböt a ciklus futása közben!
     let otherRooms = rooms.filter(r => r !== room);
-
-    // Ha nincs más szoba a listában (pl. csak 1 szoba van összesen), ne csináljon semmit
     if (otherRooms.length === 0) return;
 
-    // 2. Lefuttatjuk a keresést a tiszta listán
     let closestRoom = findClosestRoom(room.centerx, room.centery, room.id, otherRooms);
     if (closestRoom != null) {
         room.connected_to = true;
-        // 3. Elindítjuk a fúrást az aktuális szoba közepéből
         let x = Math.floor(room.centerx);
         let y = Math.floor(room.centery);
         let cx = Math.floor(closestRoom.centerx);
         let cy = Math.floor(closestRoom.centery);
-        while (x != cx || y != cy) {
-            if (Math.abs(x - cx) > Math.abs(y - cy)) {
-                if (x < cx) {
-                    x++;
-                } else {
-                    x--;
-                }
-            }
-            else {
-                if (y < cy) {
-                    y++;
-                } else {
-                    y--;
-                }
-            }
 
-            // Folyosó lehelyezése a mátrixba (ha még nincs ott semmi)
-            // FIGYELEM: == kell az összehasonlításhoz, a sima = értékadás!
-            if (matrix[x][y] == 0) {
-                matrix[x][y] = 1;
+        while (x !== cx || y !== cy) {
+            if (Math.abs(x - cx) > Math.abs(y - cy)) {
+                x < cx ? x++ : x--;
+            } else {
+                y < cy ? y++ : y--;
+            }
+            if (matrix[x][y] === 0) {
+                matrix[x][y] = 1; // Folyosó (ID: 1)
             }
         }
     }
 });
 
-const canvas = document.getElementById("dungeon");
-const ctx = canvas.getContext("2d");
-
-const tileSize = 32;
-
-drawDungeon(matrix);
-
 function isAreaEmpty(startX, startY, roomHeight, roomWidth, matrix, size) {
-    // 1. Gyors ellenőrzés: egyáltalán befér-e a térképre a szoba ebből a sarokból?
-    if (startX + roomHeight > size || startY + roomWidth > size) {
-        return false;
-    }
-
-    // 2. Végigpásztázzuk a szoba teljes leendő területét
+    if (startX + roomHeight > size || startY + roomWidth > size) return false;
     for (let r = startX; r < startX + roomHeight; r++) {
         for (let c = startY; c < startY + roomWidth; c++) {
-            // Ha BÁRMELYIK cella nem üres ("-"), akkor az egész terület hibás
-            if (matrix[r][c] !== 0) {
-                return false;
-            }
+            if (matrix[r][c] !== 0) return false;
         }
     }
-
-    // Ha végigért a ciklus és nem talált hibát, a terület szabad!
     return true;
 }
 
 function findClosestRoom(fromX, fromY, id, allRooms) {
     let closestRoom = null;
-    let minDistance = Infinity; // Kezdetben végtelen nagy távolság
-
+    let minDistance = Infinity;
     allRooms.forEach(room => {
-        // Kiszámoljuk a távolságot a szoba középpontja és a megadott pont között
         const dx = fromX - room.centerx;
         const dy = fromY - room.centery;
         const distance = Math.sqrt(dx * dx + dy * dy);
-
-        // Ha ez a távolság kisebb, mint az eddigi legkisebb, elmentjük ezt a szobát
-        if (distance < minDistance && distance != null && room.connected_to != true) {
+        if (distance < minDistance && room.connected_to !== true) {
             minDistance = distance;
             closestRoom = room;
         }
     });
-
-    return closestRoom; // Visszaadja a legközelebbi szoba objektumát
+    return closestRoom;
 }
-var i = 0;
-document.getElementsByName("color").forEach(element => {
-    document.getElementById("color" + i).addEventListener("input", function () {
-        drawDungeon(matrix);
+
+// --- DINAMIKUS VEZÉRLŐK KIRENDERELÉSE (a11y-kompatibilis id & label) ---
+export function renderTileControls() {
+    const container = document.getElementById("tile-controls-container");
+    if (!container) return;
+
+    const t = translations[currentLang];
+    container.innerHTML = "";
+
+    const activeTile = tiletypes.find(tileItem => tileItem.id === activeTileId) || tiletypes[0];
+
+    const selectWrapper = document.createElement("div");
+    selectWrapper.style.marginBottom = "10px";
+
+    const selectOptions = tiletypes.map(tileItem => 
+        `<option value="${tileItem.id}" ${tileItem.id === activeTileId ? "selected" : ""}>
+            ${tileItem.name} 
+        </option>`
+    ).join("");
+
+    selectWrapper.innerHTML = `
+        <label for="tile-selector" style="font-weight: bold; margin-right: 8px;">${t.selectActiveTile}</label>
+        <select id="tile-selector" name="tileSelector" style="padding: 4px 8px; font-size: 14px;">
+            ${selectOptions}
+        </select>
+    `;
+    container.appendChild(selectWrapper);
+
+    const otherTilesCheckboxes = tiletypes
+        .filter(other => other.id !== activeTile.id)
+        .map(other => `
+            <label for="iso-${activeTile.id}-${other.id}" style="margin-right: 8px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
+                <input type="checkbox" id="iso-${activeTile.id}-${other.id}" class="isolation-check" data-id="${activeTile.id}" data-target="${other.id}" ${activeTile.isIsolatedFrom(other.id) ? "checked" : ""}>
+                ${other.name} (${other.id})
+            </label>
+        `).join("");
+
+    const card = document.createElement("div");
+    card.className = "tile-control-item";
+    card.style.border = "1px solid #ccc";
+    card.style.padding = "10px";
+    card.style.borderRadius = "4px";
+
+    card.innerHTML = `
+        <div class="control-row" style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <label for="tile-name-${activeTile.id}" style="font-size: 12px;">${t.tileNameLabel}</label>
+            <input type="text" id="tile-name-${activeTile.id}" name="tileName" class="tile-name-input" data-id="${activeTile.id}" value="${activeTile.name}">
+            
+            <input type="color" id="tile-color-${activeTile.id}" name="tileColor" class="tile-color-input" data-id="${activeTile.id}" value="${activeTile.color}">
+            
+            <button type="button" class="btn-delete-tile" data-id="${activeTile.id}" style="margin-left: auto; background: #ff4d4d; color: white; border: none; padding: 4px 8px; cursor: pointer;">${t.deleteTileBtn}</button>
+        </div>
+        <div class="control-row" style="margin-bottom: 8px; display: flex; align-items: center; gap: 12px;">
+            <label for="tile-floor-${activeTile.id}" style="font-size: 13px; display: flex; align-items: center; gap: 4px;">
+                <input type="checkbox" id="tile-floor-${activeTile.id}" name="tileFloor" class="tile-floor-check" data-id="${activeTile.id}" ${activeTile.isFloor ? "checked" : ""}>
+                ${t.isFloorLabel}
+            </label>
+            <label for="texture-${activeTile.id}" style="display:none;">Texture</label>
+            <select id="texture-${activeTile.id}" name="tileTexture" class="tile-texture-select" data-id="${activeTile.id}">
+                <option value="none" ${activeTile.texture === "none" ? "selected" : ""}>${t.texNone}</option>
+                <option value="stone" ${activeTile.texture === "stone" ? "selected" : ""}>${t.texStone}</option>
+                <option value="wood" ${activeTile.texture === "wood" ? "selected" : ""}>${t.texWood}</option>
+                <option value="cobblestone" ${activeTile.texture === "cobblestone" ? "selected" : ""}>${t.texCobble}</option>
+            </select>
+        </div>
+        <div class="control-row" style="margin-top: 6px;">
+            <span style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 3px;">${t.wallsTowardsLabel}</span>
+            ${otherTilesCheckboxes || `<span style='font-size:11px; color:#888;'>${t.noOtherTiles}</span>`}
+        </div>
+    `;
+    container.appendChild(card);
+
+    // ESEMÉNYKEZELŐK
+    document.getElementById("tile-selector").addEventListener("change", (e) => {
+        setActiveTileId(parseInt(e.target.value, 10));
+        renderTileControls();
     });
-    i++;
+
+    const nameInput = card.querySelector(".tile-name-input");
+    if (nameInput) {
+        nameInput.addEventListener("input", (e) => {
+            const id = parseInt(e.target.dataset.id, 10);
+            const tileObj = tiletypes.find(tileItem => tileItem.id === id);
+            if (tileObj) {
+                tileObj.name = e.target.value;
+                const opt = document.querySelector(`#tile-selector option[value="${id}"]`);
+                if (opt) opt.textContent = `${tileObj.name}`;
+            }
+        });
+    }
+
+    const colorInput = card.querySelector(".tile-color-input");
+    if (colorInput) {
+        colorInput.addEventListener("input", (e) => {
+            const id = parseInt(e.target.dataset.id, 10);
+            const tileObj = tiletypes.find(tileItem => tileItem.id === id);
+            if (tileObj) {
+                tileObj.color = e.target.value;
+                scheduleDraw(matrix);
+            }
+        });
+    }
+
+    const floorCheck = card.querySelector(".tile-floor-check");
+    if (floorCheck) {
+        floorCheck.addEventListener("change", (e) => {
+            const id = parseInt(e.target.dataset.id, 10);
+            const tileObj = tiletypes.find(tileItem => tileItem.id === id);
+            if (tileObj) tileObj.isFloor = e.target.checked;
+        });
+    }
+
+    card.querySelectorAll(".isolation-check").forEach(check => {
+        check.addEventListener("change", (e) => {
+            const tileId = parseInt(e.target.dataset.id, 10);
+            const targetId = parseInt(e.target.dataset.target, 10);
+            toggleIsolation(tileId, targetId);
+            scheduleDraw(matrix);
+        });
+    });
+
+    const textureSelect = card.querySelector(".tile-texture-select");
+    if (textureSelect) {
+        textureSelect.addEventListener("change", (e) => {
+            const id = parseInt(e.target.dataset.id, 10);
+            const tileObj = tiletypes.find(tileItem => tileItem.id === id);
+            if (tileObj) {
+                tileObj.texture = e.target.value;
+                scheduleDraw(matrix);
+            }
+        });
+    }
+
+    const deleteBtn = card.querySelector(".btn-delete-tile");
+    if (deleteBtn) {
+        deleteBtn.addEventListener("click", (e) => {
+            const id = parseInt(e.target.dataset.id, 10);
+            removeTileType(id);
+            renderTileControls();
+            scheduleDraw(matrix);
+        });
+    }
+}
+
+document.getElementById("addTileBtn").addEventListener("click", () => {
+    createNewTileType();
+    renderTileControls();
 });
 
-document.querySelectorAll('.checkbox-matrix input[type="checkbox"]').forEach(checkbox => {
-    checkbox.addEventListener("change", () => {
-        drawDungeon(matrix);
-    });
-});
+// --- VÁSZON INITIALIZÁLÁS ÉS EGÉR ELÉRÉSI BEÁLLÍTÁSOK ---
+const canvas = document.getElementById("dungeon");
+const tileSize = 32;
 
-const textureSelectors = ['room-texture', 'corridor-texture', 'void-texture'];
-
-textureSelectors.forEach(id => {
-    document.getElementById(id).addEventListener('change', () => {
-        drawDungeon(matrix); 
-    });
-});
+drawDungeon(matrix);
+updateUI();
 
 document.getElementById("exportBtn").addEventListener("click", () => {
-    const canvas = document.getElementById("dungeon");
     exportToDd2vtt(matrix, canvas, tileSize);
+});
+
+// --- EGÉRREL VALÓ INTERAKTÍV RAJZOLÁS (SKÁLÁZÁS ÉS ECSETMÉRET KORREKCIÓVAL) ---
+let isDrawing = false;
+
+function drawTileAtMouse(e) {
+    const rect = canvas.getBoundingClientRect();
+    
+    // Kiszámoljuk a CSS méret és a belső Canvas felbontás arányát
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    // Az egér pozíciója a vászon tényleges belső pixelei szerint
+    const mouseX = (e.clientX - rect.left) * scaleX;
+    const mouseY = (e.clientY - rect.top) * scaleY;
+
+    // Pontos sor és oszlop meghatározása
+    const centerCol = Math.floor(mouseX / tileSize);
+    const centerRow = Math.floor(mouseY / tileSize);
+
+    // Ecsetméret beolvasása az HTML elemből (sugárként értelmezve: 0 = 1x1, 1 = 3x3, 2 = 5x5 stb.)
+    const brushInput = document.getElementById("brush_size");
+    const brushRadius = brushInput ? Math.max(0, parseInt(brushInput.value, 10) || 0) : 0;
+
+    let matrixChanged = false;
+
+    for (let r = centerRow - brushRadius; r <= centerRow + brushRadius; r++) {
+        for (let c = centerCol - brushRadius; c <= centerCol + brushRadius; c++) {
+            if (r >= 0 && r < size && c >= 0 && c < size) {
+                if (matrix[r][c] !== activeTileId) {
+                    matrix[r][c] = activeTileId;
+                    matrixChanged = true;
+                }
+            }
+        }
+    }
+
+    if (matrixChanged) {
+        scheduleDraw(matrix);
+    }
+}
+
+canvas.addEventListener("mousedown", (e) => {
+    isDrawing = true;
+    drawTileAtMouse(e);
+});
+
+canvas.addEventListener("mousemove", (e) => {
+    if (isDrawing) {
+        drawTileAtMouse(e);
+    }
+});
+
+window.addEventListener("mouseup", () => {
+    isDrawing = false;
 });

@@ -1,13 +1,15 @@
-export class tile
-{
-    constructor(color, border, isolatedFrom) {
+export class tile {
+    constructor(id, name, color, isSelectable = true, isolatedFrom = [], isFloor = true, texture = "none") {
+        this.id = Number(id);
+        this.name = name;
         this.color = color;
-        this.border = border;
-        this.isolatedFrom = isolatedFrom;
-        this.texture =0;
+        this.isSelectable = isSelectable;
+        this.isolatedFrom = isolatedFrom.map(Number); // Mindig számként tároljuk
+        this.isFloor = isFloor;
+        this.texture = texture;
     }
 
-    isIsolatedFrom(otherTile) {
-        return this.isolatedFrom.includes(String(otherTile));
+    isIsolatedFrom(targetId) {
+        return this.isolatedFrom.includes(Number(targetId));
     }
 }
