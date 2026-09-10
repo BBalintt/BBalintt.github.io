@@ -1,10 +1,12 @@
 {
   "devDependencies": {
+    "gh-pages": "^6.3.0",
     "typescript": "^7.0.2",
     "vite": "^8.2.2"
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "deploy": "vite build && npx gh-pages -d dist"
   }
 }
