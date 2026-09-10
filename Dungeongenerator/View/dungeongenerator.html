@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="hu">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docTitle">Map generator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
+  <script type="module" crossorigin src="/Dungeongenerator/assets/generator-BKNzkCQH.js"></script>
+  <link rel="stylesheet" crossorigin href="/Dungeongenerator/assets/generator-BgmYyRxk.css">
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header-row">
+            <h1 data-i18n="title">Dungeon Generátor</h1>
+            <div class="lang-selector">
+                <button id="btn-hu" type="button">HU</button>
+                <button id="btn-en" type="button">EN</button>
+                <button id="btn-de" type="button">DE</button>
+                <button id="btn-es" type="button">ES</button>
+                <button id="btn-fr" type="button">FR</button>
+            </div>
+        </div>
+
+        <canvas id="dungeon"></canvas>
+
+        <div class="controls-wrapper">
+            <div class="control-row">
+                <p data-i18n="brushSize">Ecset méret:</p>
+                <input type="number" id="brush_size" value="0" min="0">
+            </div>
+
+            <!-- Dinamikus Csempetípus Vezérlők -->
+            <div id="tile-controls-container"></div>
+            
+            <button id="addTileBtn" data-i18n="addTileBtn" style="margin-top: 10px;">+ Új csempe típus hozzáadása</button>
+        </div>
+
+        <button id="exportBtn" data-i18n="exportBtn">Exportálás DD2VTT-be</button>
+    </div>
+
+</body>
+
+</html>
