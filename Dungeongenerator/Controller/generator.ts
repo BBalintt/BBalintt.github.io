@@ -18,7 +18,7 @@ if (bgInput) {
                 const img = new Image();
                 img.onload = () => {
                     console.log("Kép sikeresen betöltve a memóriába!", img.width, img.height); // 3. Pont: betöltötte-e a DOM az Image objektumot?
-                    scheduleDraw(matrix, img);
+                    scheduleDraw(matrix, img);  
                 };
                 img.src = event.target?.result as string;
             };
