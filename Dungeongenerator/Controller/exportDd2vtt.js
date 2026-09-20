@@ -1,19 +1,11 @@
 import { translations, currentLang } from "./lang.js";
 import { tiletypes } from "./tileRegistry.js";
+import { drawDungeon } from "../View/draw.js"; // Importáld be a drawDungeon-t a View-ból (figyelj az útvonalra, ha máshol van!)
 
-/**
- * Generates and downloads a .dd2vtt map file based on the dungeon matrix and canvas state.
- * 
- * Boundary Decision Rules:
- * 1. Wall (LOS): Placed between Floor and Wall/Void, or outer bounds.
- * 2. Door (Portal): Placed at connected boundaries between Corridors & Rooms, or isolated floor boundaries.
- * 3. Nothing (Passage): Open space between adjacent connected floor tiles.
- *
- * @param {Array<Array<number>>} matrix 2D grid matrix of tile IDs
- * @param {HTMLCanvasElement} canvas Canvas element containing the rendered map image
- * @param {number} tileSize Grid size in pixels (default: 32)
- */
 export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
+    // 1. LÉPÉS: Exportálás előtt újrarajzoljuk a vásznat CSEMPE NÉLKÜL (csak háttér + falak/árnyékok)
+    drawDungeon(matrix, true);
+
     const size = matrix.length;
     const los = [];
     const portals = [];
@@ -36,21 +28,18 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
             const tileA = getTile(r, c);
             const isFloorA = tileA ? tileA.isFloor : false;
 
-            // --- Horizontal Neighbor Check (Cell (r, c) vs Cell (r, c + 1)) ---
             checkEdge(
                 r, c, r, c + 1,
                 { x: c + 1, y: r }, { x: c + 1, y: r + 1 },
                 `V_${c + 1}_${r}`
             );
 
-            // --- Vertical Neighbor Check (Cell (r, c) vs Cell (r + 1, c)) ---
             checkEdge(
                 r, c, r + 1, c,
                 { x: c, y: r + 1 }, { x: c + 1, y: r + 1 },
                 `H_${c}_${r + 1}`
             );
 
-            // --- Outer Map Boundaries (North & West edges for boundary cells) ---
             if (r === 0 && isFloorA) {
                 los.push([{ x: c, y: r }, { x: c + 1, y: r }]);
             }
@@ -67,31 +56,23 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
         const isFloorA = tileA ? tileA.isFloor : false;
         const isFloorB = tileB ? tileB.isFloor : false;
 
-        // Case 1: Transition between Floor and Non-Floor (Wall / Void)
         if (isFloorA !== isFloorB) {
             los.push([p1, p2]);
             return;
         }
 
-        // Case 2: Both tiles are non-floor (Void to Void) -> No edge needed
         if (!isFloorA && !isFloorB) return;
 
-        // Case 3: Both tiles are Floors
         const idA = matrix[r1][c1];
         const idB = matrix[r2][c2];
 
-        // Check isolation configuration between tile types
         const isIsolated = (tileA && tileA.isIsolatedFrom && tileA.isIsolatedFrom(idB)) ||
                            (tileB && tileB.isIsolatedFrom && tileB.isIsolatedFrom(idA));
 
-        // Junction between different floor tile types (Corridor, Room, or user-created custom tiles)
         const isDifferentFloorType = idA !== idB;
 
         if (isDifferentFloorType || isIsolated) {
-            // Door Candidate: Corridor-to-Room, Room-to-Room, or custom floor tile boundaries
             rawDoorSegments.push({ p1, p2, key, r1, c1, r2, c2 });
-        } else {
-            // Open Passage: Connected floor tiles of the same type -> Nothing (pass-through)
         }
     }
 
@@ -140,7 +121,6 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
     groups.forEach(group => {
         if (group.length === 0) return;
 
-        // Calculate average center point of contiguous door boundary group
         let avgX = 0, avgY = 0;
         group.forEach(s => {
             avgX += (s.p1.x + s.p2.x) / 2;
@@ -149,7 +129,6 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
         avgX /= group.length;
         avgY /= group.length;
 
-        // Select the segment closest to group center for the portal
         let bestSegment = group[0];
         let minDistanceSq = Infinity;
 
@@ -168,14 +147,18 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
             if (s === bestSegment) {
                 pushPortal(s.p1, s.p2);
             } else {
-                // Remaining contiguous segments become wall LOS so sight is blocked
                 los.push([s.p1, s.p2]);
             }
         });
     });
 
+    // Létrehozzuk a Base64 képet a csempe-nélküli változatról
     const dataUrl = canvas.toDataURL("image/png");
     const base64Image = dataUrl.replace(/^data:image\/(png|jpg);base64,/, "");
+
+    // 2. LÉPÉS: Miután lementettük az adatot, azonnal visszaállítjuk a normális nézetet (csempékkel együtt),
+    // hogy a felhasználó képernyőjén ne tűnjenek el a csempék.
+    drawDungeon(matrix, false);
 
     const dd2vttData = {
         format: 0.2,

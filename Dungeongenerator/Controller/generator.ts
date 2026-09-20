@@ -3,6 +3,32 @@ import { exportToDd2vtt } from "./exportDd2vtt.js";
 import { drawDungeon, scheduleDraw } from "../View/draw.js";
 import { tiletypes, activeTileId, setActiveTileId, createNewTileType, removeTileType, toggleIsolation } from "./tileRegistry.js";
 
+// Globális változó a háttérképnek
+export let backgroundImage: HTMLImageElement | null = null;
+
+const bgInput = document.getElementById("bg-image-input") as HTMLInputElement | null;
+if (bgInput) {
+    bgInput.addEventListener("change", (e) => {
+        console.log("Fájl kiválasztva!"); // 1. Pont: eléri-e egyáltalán az inputot?
+        const target = e.target as HTMLInputElement;
+        if (target.files && target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                console.log("Fájl beolvasva DataURL-ként!"); // 2. Pont: lefut-e a FileReader?
+                const img = new Image();
+                img.onload = () => {
+                    console.log("Kép sikeresen betöltve a memóriába!", img.width, img.height); // 3. Pont: betöltötte-e a DOM az Image objektumot?
+                    scheduleDraw(matrix, img);
+                };
+                img.src = event.target?.result as string;
+            };
+            reader.readAsDataURL(target.files[0]);
+        }
+    });
+} else {
+    console.error("Nem található a #bg-image-input elem az HTML-ben!");
+}
+
 // --- NYELVI BEÁLLÍTÁSOK KULCSAI ÉS RENDSZERE ---
 function updateUI() {
     const langData = translations[currentLang as keyof typeof translations];
@@ -44,20 +70,33 @@ interface Room {
     width: number;
     centerx: number;
     centery: number;
-    connected_to: boolean;
+    max_connections: number;
+    connections: number
 }
 
 const rooms: Room[] = [];
 for (let i = 0; i < 30; i++) {
     const x = Math.round(Math.random() * 5) + 1;
     const y = Math.round(Math.random() * 5) + 1;
+    const rand = Math.random();
+    let maxConn = 1;
+    if (rand < 0.4) {
+        maxConn = 1;
+    } else if (rand < 0.7) {
+        maxConn = 2;
+    } else if (rand < 0.9) {
+        maxConn = 3;
+    } else {
+        maxConn = 4;
+    }
     rooms.push({
         id: i, 
         height: x, 
         width: y,
         centerx: 0, 
-        centery: 0, 
-        connected_to: false
+        centery: 0,
+        max_connections: maxConn,
+        connections:0
     });
 }
 
@@ -78,18 +117,14 @@ rooms.forEach(room => {
     room.centery = y + (room.width / 2);
 });
 
-// 2. Folyosók összekötése
-rooms.forEach(room => {
-    let otherRooms = rooms.filter(r => r !== room);
-    if (otherRooms.length === 0) return;
-
-    let closestRoom = findClosestRoom(room.centerx, room.centery, room.id, otherRooms);
-    if (closestRoom != null) {
-        room.connected_to = true;
-        let x = Math.floor(room.centerx);
-        let y = Math.floor(room.centery);
-        let cx = Math.floor(closestRoom.centerx);
-        let cy = Math.floor(closestRoom.centery);
+// 2. Folyosók összekötése - Garantáltan összefüggő dungeon (Minimum Spanning Tree + Extra kapcsolatok)
+if (rooms.length > 0) {
+    // Segédfüggvény a folyosó kirajzolásához két szoba között
+    const connectRooms = (r1: Room, r2: Room) => {
+        let x = Math.floor(r1.centerx);
+        let y = Math.floor(r1.centery);
+        let cx = Math.floor(r2.centerx);
+        let cy = Math.floor(r2.centery);
 
         while (x !== cx || y !== cy) {
             if (Math.abs(x - cx) > Math.abs(y - cy)) {
@@ -101,8 +136,61 @@ rooms.forEach(room => {
                 matrix[x][y] = 1; // Folyosó (ID: 1)
             }
         }
+        r1.connections++;
+        r2.connections++;
+    };
+
+    // 1. lépés: Prim-algoritmus a teljes összefüggőségért (Garantálja, hogy minden szoba elérhető)
+    const connectedSet = new Set<Room>();
+    const unselectedRooms = [...rooms];
+
+    // Kezdjük az első szobával
+    const firstRoom = unselectedRooms.shift()!;
+    connectedSet.add(firstRoom);
+
+    while (unselectedRooms.length > 0) {
+        let minDist = Infinity;
+        let bestPair: { from: Room; to: Room } | null = null;
+
+        // Keresjük a legközelebbi párt a már csatlakoztatott és a még nem csatlakoztatott halmaz között
+        connectedSet.forEach(cRoom => {
+            unselectedRooms.forEach(uRoom => {
+                const dx = cRoom.centerx - uRoom.centerx;
+                const dy = cRoom.centery - uRoom.centery;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestPair = { from: cRoom, to: uRoom };
+                }
+            });
+        });
+
+        if (bestPair) {
+            const { from, to } = bestPair as { from: Room; to: Room };
+            connectRooms(from, to);
+            connectedSet.add(to);
+            const index = unselectedRooms.indexOf(to);
+            if (index > -1) unselectedRooms.splice(index, 1);
+        } else {
+            break;
+        }
     }
-});
+
+    // 2. lépés: Extra kapcsolatok hozzáadása a max_connections erejéig (hogy ne csak egyeneságú fa legyen, hanem körök is)
+    rooms.forEach(room => {
+        while (room.connections < room.max_connections) {
+            let otherRooms = rooms.filter(r => r !== room && r.connections < r.max_connections);
+            if (otherRooms.length === 0) break;
+
+            let closestRoom = findClosestRoom(room.centerx, room.centery, room.id, otherRooms);
+            if (closestRoom != null) {
+                connectRooms(room, closestRoom);
+            } else {
+                break;
+            }
+        }
+    });
+}
 
 function isAreaEmpty(startX: number, startY: number, roomHeight: number, roomWidth: number, matrix: number[][], size: number): boolean {
     if (startX + roomHeight > size || startY + roomWidth > size) return false;
@@ -117,11 +205,15 @@ function isAreaEmpty(startX: number, startY: number, roomHeight: number, roomWid
 function findClosestRoom(fromX: number, fromY: number, id: number, allRooms: Room[]): Room | null {
     let closestRoom: Room | null = null;
     let minDistance = Infinity;
+    
     allRooms.forEach(room => {
+        if (room.id === id || room.connections == room.max_connections) return;
         const dx = fromX - room.centerx;
         const dy = fromY - room.centery;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance < minDistance && room.connected_to !== true) {
+        
+        // Csak akkor veszi figyelembe, ha még van szabad hely a kapcsolatok számára
+        if (distance < minDistance) {
             minDistance = distance;
             closestRoom = room;
         }

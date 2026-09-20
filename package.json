@@ -7,6 +7,6 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "deploy": "vite build && npx gh-pages -d dist"
+    "deploy": "git add . && git commit -m \"Auto update source\" && git push origin main && vite build && npx gh-pages -d dist"
   }
 }

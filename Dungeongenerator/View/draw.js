@@ -2,7 +2,12 @@ import { tiletypes } from "../Controller/tileRegistry.js";
 import { drawStoneTexture, drawWoodTexture, drawCobblestoneTexture } from "./textures.js";
 
 let isDrawingScheduled = false;
+export let backgroundImage = null;
 const roughness = 6;
+
+export function setBackgroundImage(img) {
+    backgroundImage = img;
+}
 
 // Fast Jitter Lookup Table
 const JITTER_TABLE_SIZE = 1024;
@@ -16,7 +21,10 @@ function getFastJitter(x, y, i, side) {
     return JITTER_TABLE[index];
 }
 
-export function scheduleDraw(matrix) {
+export function scheduleDraw(matrix, bgImg = null) {
+    if (bgImg !== null) {
+        backgroundImage = bgImg;
+    }
     if (!isDrawingScheduled) {
         isDrawingScheduled = true;
         requestAnimationFrame(() => {
@@ -26,7 +34,8 @@ export function scheduleDraw(matrix) {
     }
 }
 
-export function drawDungeon(matrix) {
+// Frissítsd a drawDungeon függvényt a draw.js-ben:
+export function drawDungeon(matrix, skipTiles = false) {
     const canvas = document.getElementById("dungeon");
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -41,21 +50,35 @@ export function drawDungeon(matrix) {
     // Tiszta háttér biztosítása
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const tileLookup = new Map(tiletypes.map(t => [t.id, t]));
-
-    // 1. LÉPÉS: Csempék és textúrák
-    for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-            const tileId = matrix[y][x];
-            const tileObj = tileLookup.get(tileId);
-
-            if (tileObj && tileId !== 0) { // Ne rajzoljunk üres tile-ra (ID: 0)
-                renderTileWithTexture(ctx, x, y, tileSize, tileObj);
-            }
-        }
+    // 0. LÉPÉS: Háttérkép kirajzolása (ha van betöltve)
+    if (backgroundImage) {
+        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
     }
 
-    // 2. LÉPÉS: Falak (Kizárólag valid szomszédos izoláció esetén)
+    const tileLookup = new Map(tiletypes.map(t => [t.id, t]));
+
+    // Ha nincs tiltva a csempék rajzolása, akkor kirajzoljuk őket (szükség esetén áttetszően)
+    if (!skipTiles) {
+        ctx.save();
+        if (backgroundImage) {
+            ctx.globalAlpha = 0.4;
+        }
+
+        // 1. LÉPÉS: Csempék és textúrák
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                const tileId = matrix[y][x];
+                const tileObj = tileLookup.get(tileId);
+
+                if (tileObj && tileId !== 0) {
+                    renderTileWithTexture(ctx, x, y, tileSize, tileObj);
+                }
+            }
+        }
+        ctx.restore();
+    }
+
+    // 2. LÉPÉS: Falak (ezek mindig kirajzolódnak, így a falak és árnyékok megmaradnak)
     drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
 }
 
@@ -64,7 +87,6 @@ function renderTileWithTexture(ctx, x, y, tileSize, tileObj) {
     const py = y * tileSize;
 
     ctx.fillStyle = tileObj.color;
-    // 0.5px-es túlfedés a Canvas anti-aliasing fekete résvonalainak elkerülésére
     ctx.fillRect(px, py, tileSize + 0.5, tileSize + 0.5);
 
     switch (tileObj.texture) {
@@ -97,7 +119,6 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
     for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
             const tileId = matrix[y][x];
-            // Üres mezőre vagy érvénytelen tile-ra ne rajzoljunk falat!
             if (tileId === 0) continue;
 
             const tiletype = tileLookup.get(tileId);
