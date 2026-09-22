@@ -42,23 +42,19 @@ if (mapFileInput) {
                         
                         console.log("DD2VTT sikeresen betöltve!", dd2vttData);
 
-                        // 1. Falak és portálok eltárolása a megjelenítéshez és újraexportáláshoz
                         loadedLineOfSight = dd2vttData.line_of_sight || null;
                         loadedPortals = dd2vttData.portals || null;
 
-                        // 2. Mátrix átméretezése és ÜRESRE állítása (0), 
-                        // hogy ne generáljon saját szobákat/falakat a kép alá
                         if (dd2vttData.resolution && dd2vttData.resolution.map_size) {
                             const mapSize = dd2vttData.resolution.map_size;
                             size = Math.max(mapSize.x, mapSize.y);
                             
                             matrix.length = 0;
                             for (let r = 0; r < size; r++) {
-                                matrix[r] = Array(size).fill(0); // 0 = Üres / Nincs csempe, de a falak látszani fognak!
+                                matrix[r] = Array(size).fill(0);
                             }
                         }
 
-                        // 3. A DD2VTT beágyazott képének betöltése háttérként
                         if (dd2vttData.image) {
                             const img = new Image();
                             backgroundImage = img;
@@ -87,7 +83,7 @@ if (mapFileInput) {
                 reader.onload = (event) => {
                     const img = new Image();
                     backgroundImage = img;
-                    loadedLineOfSight = null; // Új képnél töröljük a régi falakat
+                    loadedLineOfSight = null;
                     loadedPortals = null;
 
                     img.onload = () => {
@@ -135,7 +131,7 @@ if (!localStorage.getItem("app_lang")) {
     }
 });
 
-// --- ALAPÉRTELMEZETT SZOBÁK ÉS FOLYOSÓK GENERÁLÁSA (Csak tiszta indításkor) ---
+// --- SZOBÁK ÉS FOLYOSÓK GENERÁLÁSA (KEVERT ALAKZATOKKAL) ---
 interface Room {
     id: number;
     height: number;
@@ -143,13 +139,13 @@ interface Room {
     centerx: number;
     centery: number;
     max_connections: number;
-    connections: number
+    connections: number;
 }
 
 const rooms: Room[] = [];
 for (let i = 0; i < 30; i++) {
-    const x = Math.round(Math.random() * 5) + 1;
-    const y = Math.round(Math.random() * 5) + 1;
+    const x = Math.round(Math.random() * 5) + 3; // Kicsit nagyobb méret a kerek szobákhoz
+    const y = Math.round(Math.random() * 5) + 3;
     const rand = Math.random();
     let maxConn = 1;
     if (rand < 0.4) {
@@ -172,19 +168,45 @@ for (let i = 0; i < 30; i++) {
     });
 }
 
-// 1. Szobák elhelyezése
+// 1. Szobák elhelyezése (Keverve: téglalap és kör / ovális alakzatok)
 rooms.forEach(room => {
+    const roomShape = Math.random() < 0.5 ? 'rect' : 'ellipse';
+
     let x = Math.round(Math.random() * (size - room.height));
     let y = Math.round(Math.random() * (size - room.width));
+    
     while (!isAreaEmpty(x, y, room.height, room.width, matrix, size)) {
         x = Math.floor(Math.random() * (size - room.height + 1));
         y = Math.floor(Math.random() * (size - room.width + 1));
     }
-    for (let i = x; i < x + room.height; i++) {
-        for (let j = y; j < y + room.width; j++) {
-            matrix[i][j] = 2; // Szoba (ID: 2)
+
+    if (roomShape === 'rect') {
+        // Klasszikus téglalap alakú szoba
+        for (let i = x; i < x + room.height; i++) {
+            for (let j = y; j < y + room.width; j++) {
+                matrix[i][j] = 2; // Szoba (ID: 2)
+            }
+        }
+    } else {
+        // Új, kör / ovális alakú szoba matematikai ellipszis egyenlettel
+        const radiusX = room.width / 2;
+        const radiusY = room.height / 2;
+        const centerX = x + radiusX;
+        const centerY = y + radiusY;
+
+        for (let i = x; i < x + room.height; i++) {
+            for (let j = y; j < y + room.width; j++) {
+                const dx = (j - centerY) / radiusY;
+                const dy = (i - centerX) / radiusX;
+                if (dx * dx + dy * dy <= 1.0) {
+                    if (i >= 0 && i < size && j >= 0 && j < size) {
+                        matrix[i][j] = 2; // Szoba (ID: 2)
+                    }
+                }
+            }
         }
     }
+
     room.centerx = x + (room.height / 2);
     room.centery = y + (room.width / 2);
 });

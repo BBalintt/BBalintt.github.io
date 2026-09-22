@@ -4,7 +4,7 @@ import { getLoadedLineOfSight, getLoadedPortals } from "../Controller/generator.
 
 let isDrawingScheduled = false;
 export let backgroundImage = null;
-const roughness = 6;
+const roughness = 0;
 
 export function getBackgroundImage() {
     return backgroundImage;
