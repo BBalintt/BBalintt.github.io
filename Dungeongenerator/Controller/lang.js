@@ -21,7 +21,8 @@ export const translations = {
         tileNothing: "Semmi",
         tileCorridor: "Folyosó",
         tileRoom: "Szoba",
-        newTileDefaultName: "Új típus"
+        newTileDefaultName: "Új típus",
+        bgImageLabel: "Háttérkép betöltése"
     },
     en: {
         docTitle: "Map Generator",
@@ -43,7 +44,8 @@ export const translations = {
         tileNothing: "Nothing",
         tileCorridor: "Corridor",
         tileRoom: "Room",
-        newTileDefaultName: "New Type"
+        newTileDefaultName: "New Type",
+        bgImageLabel: "Load Background Image"
     },
     de: {
         docTitle: "Karten-Generator",
@@ -65,7 +67,8 @@ export const translations = {
         tileNothing: "Nichts",
         tileCorridor: "Korridor",
         tileRoom: "Raum",
-        newTileDefaultName: "Neuer Typ"
+        newTileDefaultName: "Neuer Typ",
+        bgImageLabel: "Hintergrundbild laden"
     },
     es: {
         docTitle: "Generador de Mapas",
@@ -87,7 +90,8 @@ export const translations = {
         tileNothing: "Nada",
         tileCorridor: "Pasillo",
         tileRoom: "Habitación",
-        newTileDefaultName: "Nuevo Tipo"
+        newTileDefaultName: "Nuevo Tipo",
+        bgImageLabel: "Cargar imagen de fondo"
     },
     fr: {
         docTitle: "Générateur de Cartes",
@@ -109,7 +113,8 @@ export const translations = {
         tileNothing: "Rien",
         tileCorridor: "Couloir",
         tileRoom: "Pièce",
-        newTileDefaultName: "Nouveau Type"
+        newTileDefaultName: "Nouveau Type",
+        bgImageLabel: "Charger l'image de fond"
     }
 };
 

@@ -6,27 +6,65 @@ import { tiletypes, activeTileId, setActiveTileId, createNewTileType, removeTile
 // Globális változó a háttérképnek
 export let backgroundImage: HTMLImageElement | null = null;
 
-const bgInput = document.getElementById("bg-image-input") as HTMLInputElement | null;
-if (bgInput) {
-    bgInput.addEventListener("change", (e) => {
-        console.log("Fájl kiválasztva!"); // 1. Pont: eléri-e egyáltalán az inputot?
+// --- UNIVERZÁLIS FÁJLBEOLVASÓ (KÉP ÉS DD2VTT) ---
+const mapFileInput = document.getElementById("map-file-input") as HTMLInputElement | null;
+
+if (mapFileInput) {
+    mapFileInput.addEventListener("change", (e) => {
         const target = e.target as HTMLInputElement;
         if (target.files && target.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                console.log("Fájl beolvasva DataURL-ként!"); // 2. Pont: lefut-e a FileReader?
-                const img = new Image();
-                img.onload = () => {
-                    console.log("Kép sikeresen betöltve a memóriába!", img.width, img.height); // 3. Pont: betöltötte-e a DOM az Image objektumot?
-                    scheduleDraw(matrix, img);  
+            const file = target.files[0];
+            const fileName = file.name.toLowerCase();
+
+            if (fileName.endsWith(".dd2vtt")) {
+                // --- DD2VTT FÁJL BEOLVASÁSA ---
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const jsonContent = event.target?.result as string;
+                        const dd2vttData = JSON.parse(jsonContent);
+                        
+                        console.log("DD2VTT sikeresen betöltve!", dd2vttData);
+
+                        // A DD2VTT formátum beágyazott képet (resolution + image) tartalmaz
+                        if (dd2vttData.image) {
+                            const img = new Image();
+                            img.onload = () => {
+                                console.log("DD2VTT beágyazott kép betöltve a háttérbe!");
+                                scheduleDraw(matrix, img as any);
+                            };
+                            // Ha a DD2VTT tiszta base64 stringet vagy data url-t ad vissza
+                            img.src = dd2vttData.image.startsWith("data:") 
+                                ? dd2vttData.image 
+                                : `data:image/png;base64,${dd2vttData.image}`;
+                        }
+
+                        // Itt a jövőben feldolgozhatod a falakat / rácsokat is (dd2vttData.resolution, dd2vttData.line_of_sight stb.)
+
+                    } catch (err) {
+                        console.error("Hiba a DD2VTT fájl feldolgozása közben:", err);
+                        alert("Érvénytelen DD2VTT formátum!");
+                    }
                 };
-                img.src = event.target?.result as string;
-            };
-            reader.readAsDataURL(target.files[0]);
+                reader.readAsText(file);
+
+            } else {
+                // --- HAGYOMÁNYOS KÉPFÁJL BEOLVASÁSA ---
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        console.log("Kép sikeresen betöltve háttérként!", img.width, img.height);
+                        scheduleDraw(matrix, img as any);  
+                    };
+                    img.src = event.target?.result as string;
+                };
+                reader.readAsDataURL(file);
+            }
         }
     });
 } else {
-    console.error("Nem található a #bg-image-input elem az HTML-ben!");
+    console.error("Nem található a #map-file-input elem az HTML-ben!");
 }
 
 // --- NYELVI BEÁLLÍTÁSOK KULCSAI ÉS RENDSZERE ---
