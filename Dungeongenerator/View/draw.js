@@ -108,6 +108,18 @@ export function drawDungeon(matrix, skipTiles = false) {
             drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
         }
     }
+
+    // 1. Ha betöltött fájlból vannak portálok, azt rajzoljuk
+    // 2. Különben számoljuk ki élőben a mátrix alapján, hogy szerkesztés közben is látszódjanak!
+    const loadedPortals = getLoadedPortals();
+    if (loadedPortals && Array.isArray(loadedPortals) && loadedPortals.length > 0) {
+        drawEditorPortals(ctx, loadedPortals, tileSize);
+    } else {
+        const calculatedPortals = calculatePortalsFromMatrix(matrix, tileSize);
+        if (calculatedPortals.length > 0) {
+            drawEditorPortals(ctx, calculatedPortals, tileSize);
+        }
+    }
 }
 
 function drawLoadedLineOfSight(ctx, lineOfSight) {
@@ -268,7 +280,6 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
     });
 }
 
-// 2. Sima stílus: Sarok-háromszögek homorú átfogóval, 1 pixeles kifolyással
 function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
     const defaultTileColor = tiletypes[0] ? tiletypes[0].color : "#000000";
 
@@ -295,8 +306,8 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
             const hasLeft = leftId !== null && leftId !== tileId && tiletype.isIsolatedFrom(leftId);
             const hasRight = rightId !== null && rightId !== tileId && tiletype.isIsolatedFrom(rightId);
 
-            const outward = 1;         // Pontosan 1 pixel kifelé
-            const inward = tileSize / 2; // Befelé a szoba feléig
+            const outward = 1;         
+            const inward = tileSize / 2; 
 
             const getNeighborColor = (neighborId) => {
                 if (neighborId === null || neighborId === 0) return defaultTileColor;
@@ -304,7 +315,6 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 return neighborType ? neighborType.color : defaultTileColor;
             };
 
-            // FELSŐ-JOBB SAROK
             if (hasTop && hasRight) {
                 ctx.fillStyle = getNeighborColor(rightId);
                 ctx.beginPath();
@@ -315,7 +325,6 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 ctx.fill();
             }
 
-            // FELSŐ-BAL SAROK
             if (hasTop && hasLeft) {
                 ctx.fillStyle = getNeighborColor(leftId);
                 ctx.beginPath();
@@ -326,7 +335,6 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 ctx.fill();
             }
 
-            // ALSÓ-JOBB SAROK
             if (hasBottom && hasRight) {
                 ctx.fillStyle = getNeighborColor(rightId);
                 ctx.beginPath();
@@ -337,7 +345,6 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 ctx.fill();
             }
 
-            // ALSÓ-BAL SAROK
             if (hasBottom && hasLeft) {
                 ctx.fillStyle = getNeighborColor(leftId);
                 ctx.beginPath();
@@ -350,5 +357,171 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
         }
     }
 
+    ctx.restore();
+}
+
+function calculatePortalsFromMatrix(matrix, tileSize) {
+    const size = matrix.length;
+    const tileLookup = new Map(tiletypes.map(t => [t.id, t]));
+    
+    const isValid = (r, c) => r >= 0 && r < size && c >= 0 && c < size;
+    const getTile = (r, c) => {
+        if (!isValid(r, c)) return null;
+        const tileId = matrix[r][c];
+        return tileLookup.get(tileId) || null;
+    };
+
+    const rawDoorSegments = [];
+
+    const checkEdge = (r1, c1, r2, c2, p1, p2) => {
+        const tileA = getTile(r1, c1);
+        const tileB = getTile(r2, c2);
+
+        const isFloorA = tileA ? tileA.isFloor : false;
+        const isFloorB = tileB ? tileB.isFloor : false;
+
+        if (isFloorA !== isFloorB) return;
+        if (!isFloorA && !isFloorB) return;
+
+        const idA = matrix[r1][c1];
+        const idB = matrix[r2][c2];
+
+        const isIsolated = (tileA && tileA.isIsolatedFrom && tileA.isIsolatedFrom(idB)) ||
+                           (tileB && tileB.isIsolatedFrom && tileB.isIsolatedFrom(idA));
+
+        const isDifferentFloorType = idA !== idB;
+
+        if (isDifferentFloorType || isIsolated) {
+            rawDoorSegments.push({ p1, p2, r1, c1, r2, c2 });
+        }
+    };
+
+    for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+            checkEdge(r, c, r, c + 1, { x: c + 1, y: r }, { x: c + 1, y: r + 1 });
+            checkEdge(r, c, r + 1, c, { x: c, y: r + 1 }, { x: c + 1, y: r + 1 });
+        }
+    }
+
+    const visited = new Set();
+    const groups = [];
+
+    const areConnected = (s1, s2) => {
+        return (s1.p1.x === s2.p1.x && s1.p1.y === s2.p1.y) ||
+               (s1.p1.x === s2.p2.x && s1.p1.y === s2.p2.y) ||
+               (s1.p2.x === s2.p1.x && s1.p2.y === s2.p1.y) ||
+               (s1.p2.x === s2.p2.x && s1.p2.y === s2.p2.y);
+    };
+
+    for (let i = 0; i < rawDoorSegments.length; i++) {
+        if (visited.has(i)) continue;
+
+        const group = [];
+        const queue = [rawDoorSegments[i]];
+        visited.add(i);
+
+        while (queue.length > 0) {
+            const current = queue.shift();
+            group.push(current);
+
+            for (let j = 0; j < rawDoorSegments.length; j++) {
+                if (!visited.has(j) && areConnected(current, rawDoorSegments[j])) {
+                    visited.add(j);
+                    queue.push(rawDoorSegments[j]);
+                }
+            }
+        }
+        groups.push(group);
+    }
+
+    const portals = [];
+
+    groups.forEach(group => {
+        if (group.length === 0) return;
+
+        let avgX = 0, avgY = 0;
+        group.forEach(s => {
+            avgX += (s.p1.x + s.p2.x) / 2;
+            avgY += (s.p1.y + s.p2.y) / 2;
+        });
+        avgX /= group.length;
+        avgY /= group.length;
+
+        let bestSegment = group[0];
+        let minDistanceSq = Infinity;
+
+        group.forEach(s => {
+            const midX = (s.p1.x + s.p2.x) / 2;
+            const midY = (s.p1.y + s.p2.y) / 2;
+            const distSq = Math.pow(midX - avgX, 2) + Math.pow(midY - avgY, 2);
+
+            if (distSq < minDistanceSq) {
+                minDistanceSq = distSq;
+                bestSegment = s;
+            }
+        });
+
+        // A pozíciót is a fal szegmens felezőpontjára állítjuk (szintén pixelben skálázva)
+        const midX = (bestSegment.p1.x + bestSegment.p2.x) / 2;
+        const midY = (bestSegment.p1.y + bestSegment.p2.y) / 2;
+
+        portals.push({
+            position: { x: midX * tileSize, y: midY * tileSize },
+            bounds: [
+                { x: bestSegment.p1.x * tileSize, y: bestSegment.p1.y * tileSize },
+                { x: bestSegment.p2.x * tileSize, y: bestSegment.p2.y * tileSize }
+            ]
+        });
+    });
+
+    return portals;
+}
+
+function drawEditorPortals(ctx, portals, tileSize) {
+    ctx.save();
+    portals.forEach(portal => {
+        const b = portal.bounds;
+        if (!b || b.length < 2) return;
+
+        const p1 = b[0];
+        const p2 = b[1];
+
+        // Eldöntjük, hogy a fal vízszintes vagy függőleges
+        const isHorizontal = p1.y === p2.y;
+        
+        let px, py, pWidth, pHeight;
+        const doorThickness = 10; // Az ajtó vastagsága pixelben
+
+        if (isHorizontal) {
+            // Vízszintes fal: a rácsvonalra középezzük függőlegesen
+            px = Math.min(p1.x, p2.x);
+            py = p1.y - (doorThickness / 2);
+            pWidth = Math.abs(p2.x - p1.x);
+            pHeight = doorThickness;
+        } else {
+            // Függőleges fal: a rácsvonalra középezzük vízszintesen
+            px = p1.x - (doorThickness / 2);
+            py = Math.min(p1.y, p2.y);
+            pWidth = doorThickness;
+            pHeight = Math.abs(p2.y - p1.y);
+        }
+
+        // Féláttetsző háttér
+        ctx.fillStyle = "rgba(180, 100, 40, 0.6)";
+        ctx.fillRect(px, py, pWidth, pHeight);
+
+        // Keret
+        ctx.strokeStyle = "#ffcc00";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(px, py, pWidth, pHeight);
+
+        // Ajtó ikon középen
+        ctx.fillStyle = "#ffffff";
+        const fontSize = Math.max(12, Math.min(pWidth, pHeight) * 0.8);
+        ctx.font = `${fontSize}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("🚪", px + pWidth / 2, py + pHeight / 2);
+    });
     ctx.restore();
 }
