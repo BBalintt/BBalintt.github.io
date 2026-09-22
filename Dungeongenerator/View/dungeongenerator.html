@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="docTitle">Map generator</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
-  <script type="module" crossorigin src="../../assets/generator-DA4OiKf9.js"></script>
+  <script type="module" crossorigin src="../../assets/generator-DZWkcbXc.js"></script>
   <link rel="stylesheet" crossorigin href="../../assets/generator-BgmYyRxk.css">
 </head>
 
@@ -27,12 +27,18 @@
         <canvas id="dungeon"></canvas>
 
         <div class="controls-wrapper">
+            <!-- ÚJ: Módválasztó gombok (Csempézés vs Ajtó szerkesztés) -->
+            <div id="tool-mode-selector" style="margin-bottom: 12px; display: flex; gap: 8px;">
+                <button id="btn-mode-draw" style="flex: 1; background: #4CAF50; color: white; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🖌️ Csempézés</button>
+                <button id="btn-mode-door" style="flex: 1; background: #ddd; color: black; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🚪 Ajtó szerkesztés</button>
+            </div>
+
             <div class="control-row">
                 <p data-i18n="brushSize">Ecset méret:</p>
                 <input type="number" id="brush_size" value="0" min="0">
             </div>
 
-            <!-- Új: Falstílus választó -->
+            <!-- Falstílus választó -->
             <div class="control-row" style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
                 <label for="wall-style-select" style="font-size: 14px; font-weight: bold;" data-i18n="wallStyleLabel">Falstílus:</label>
                 <select id="wall-style-select" style="padding: 4px; border-radius: 4px;">
