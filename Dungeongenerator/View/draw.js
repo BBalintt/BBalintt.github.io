@@ -354,7 +354,7 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 const edgeY = baseY + tileSize;
                 const neighborTile = tileLookup.get(matrix[y + 1][x]);
                 const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                const pathList.push({
+                pathList.push({
                     x0: baseX, y0: edgeY,
                     cp1x: baseX, cp1y: edgeY - halfSize,
                     cp2x: baseX + tileSize, cp2y: edgeY - halfSize,
