@@ -3,8 +3,12 @@ import { tiletypes } from "./tileRegistry.js";
 import { drawDungeon } from "../View/draw.js";
 
 export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
-    // 1. LÉPÉS: Exportálás előtt újrarajzoljuk a vásznat CSEMPE NÉLKÜL (csak háttér + falak/árnyékok)
-    drawDungeon(matrix, true);
+    // CSAK akkor hagyjuk ki a csempéket, ha VAN betöltve háttérkép.
+    // Ha nincs háttér, a csempéket is bele kell menteni a képbe!
+    const skipTilesIfNeeded = (backgroundImage !== null);
+
+    // 1. LÉPÉS: Exportálás előtti újrarajzolás
+    drawDungeon(matrix, skipTilesIfNeeded);
 
     const size = matrix.length;
     const los = [];
