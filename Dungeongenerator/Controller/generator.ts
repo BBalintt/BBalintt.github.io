@@ -180,7 +180,7 @@ rooms.forEach(room => {
         y = Math.floor(Math.random() * (size - room.width + 1));
     }
 
-    if (roomShape === 'ret') {
+    if (roomShape === 'rect') {
         // Klasszikus téglalap alakú szoba
         for (let i = x; i < x + room.height; i++) {
             for (let j = y; j < y + room.width; j++) {
