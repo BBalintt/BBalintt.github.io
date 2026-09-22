@@ -2,6 +2,7 @@ import { translations, currentLang, setLanguage } from "./lang.js";
 import { exportToDd2vtt } from "./exportDd2vtt.js";
 import { drawDungeon, scheduleDraw } from "../View/draw.js";
 import { tiletypes, activeTileId, setActiveTileId, createNewTileType, removeTileType, toggleIsolation } from "./tileRegistry.js";
+import { setWallStyle } from "../View/draw.js";
 
 // Globális változó a háttérképnek
 export let backgroundImage: HTMLImageElement | null = null;
@@ -24,6 +25,14 @@ export function getLoadedPortals() {
 
 // --- UNIVERZÁLIS FÁJLBEOLVASÓ (KÉP ÉS DD2VTT) ---
 const mapFileInput = document.getElementById("map-file-input") as HTMLInputElement | null;
+
+const wallStyleSelect = document.getElementById("wall-style-select") as HTMLSelectElement;
+if (wallStyleSelect) {
+    wallStyleSelect.addEventListener("change", (e) => {
+        const selectedStyle = (e.target as HTMLSelectElement).value;
+        setWallStyle(selectedStyle); // Ez automatikusan átállítja és újrarajzolja a pályát
+    });
+}
 
 if (mapFileInput) {
     mapFileInput.addEventListener("change", (e) => {

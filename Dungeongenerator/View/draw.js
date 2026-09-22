@@ -4,7 +4,16 @@ import { getLoadedLineOfSight, getLoadedPortals } from "../Controller/generator.
 
 let isDrawingScheduled = false;
 export let backgroundImage = null;
-const roughness = 6;
+
+// Választható falstílus: "rocky" (szaggatott/barlangos) vagy "smooth" (sima/lekerekített)
+export let currentWallStyle = "rocky"; 
+
+export function setWallStyle(style) {
+    if (style === "rocky" || style === "smooth") {
+        currentWallStyle = style;
+        scheduleDraw();
+    }
+}
 
 export function getBackgroundImage() {
     return backgroundImage;
@@ -14,7 +23,9 @@ export function setBackgroundImage(img) {
     backgroundImage = img;
 }
 
-// Fast Jitter Lookup Table
+const roughness = 6;
+
+// Fast Jitter Lookup Table a rocky stílushoz
 const JITTER_TABLE_SIZE = 1024;
 const JITTER_TABLE = new Float32Array(JITTER_TABLE_SIZE);
 for (let i = 0; i < JITTER_TABLE_SIZE; i++) {
@@ -33,13 +44,23 @@ export function scheduleDraw(matrix, bgImg = null) {
     if (!isDrawingScheduled) {
         isDrawingScheduled = true;
         requestAnimationFrame(() => {
+            // Ha nem kap mátrixot, külsőből vagy globálisból is vehetné, de itt maradunk a paraméternél
             drawDungeon(matrix);
             isDrawingScheduled = false;
         });
     }
 }
 
+let lastMatrix = null;
+
 export function drawDungeon(matrix, skipTiles = false) {
+    if (matrix) {
+        lastMatrix = matrix;
+    } else {
+        matrix = lastMatrix;
+    }
+    if (!matrix) return;
+
     const canvas = document.getElementById("dungeon");
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -51,30 +72,28 @@ export function drawDungeon(matrix, skipTiles = false) {
     canvas.width = cols * tileSize;
     canvas.height = rows * tileSize;
 
-    // Tiszta háttér biztosítása
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 0. LÉPÉS: Háttérkép kirajzolása (ha van betöltve, pl. DD2VTT beágyazott kép)
+    // 0. LÉPÉS: Háttérkép kirajzolása
     if (backgroundImage) {
         ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
     }
 
     const tileLookup = new Map(tiletypes.map(t => [t.id, t]));
 
-    // Ha vannak betöltött DD2VTT falak (line_of_sight), akkor rajzoljuk ki őket a háttérre
+    // DD2VTT falak
     const loadedLoS = getLoadedLineOfSight();
     if (loadedLoS && Array.isArray(loadedLoS)) {
         drawLoadedLineOfSight(ctx, loadedLoS);
     }
 
-    // Ha nincs tiltva a csempék rajzolása, akkor kirajzoljuk őket
+    // Csempék rajzolása
     if (!skipTiles) {
         ctx.save();
         if (backgroundImage) {
             ctx.globalAlpha = 0.4;
         }
 
-        // 1. LÉPÉS: Csempék és textúrák
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
                 const tileId = matrix[y][x];
@@ -88,13 +107,16 @@ export function drawDungeon(matrix, skipTiles = false) {
         ctx.restore();
     }
 
-    // 2. LÉPÉS: Procedurális falak (ha nem külső DD2VTT sablont használunk)
+    // 2. LÉPÉS: Falak kirajzolása a választott stílus szerint (Rocky vagy Smooth)
     if (!loadedLoS) {
-        drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
+        if (currentWallStyle === "smooth") {
+            drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
+        } else {
+            drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
+        }
     }
 }
 
-// DD2VTT Line of Sight (falak) kirajzolása
 function drawLoadedLineOfSight(ctx, lineOfSight) {
     ctx.save();
     ctx.strokeStyle = "#111111";
@@ -105,23 +127,15 @@ function drawLoadedLineOfSight(ctx, lineOfSight) {
 
     lineOfSight.forEach(polygon => {
         if (!Array.isArray(polygon) || polygon.length === 0) return;
-
         ctx.beginPath();
         polygon.forEach((pt, index) => {
-            const px = pt.x;
-            const py = pt.y;
-
-            if (index === 0) {
-                ctx.moveTo(px, py);
-            } else {
-                ctx.lineTo(px, py);
-            }
+            if (index === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
         });
         ctx.closePath();
         ctx.stroke();
         ctx.fill();
     });
-
     ctx.restore();
 }
 
@@ -147,6 +161,7 @@ function renderTileWithTexture(ctx, x, y, tileSize, tileObj) {
     }
 }
 
+// 1. A RÉGI: Barlangos / Szaggatott stílus (Rocky)
 function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
     const quarterSize = tileSize / 4;
     const defaultTileColor = tiletypes[0] ? tiletypes[0].color : "#000000";
@@ -171,96 +186,83 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
             const baseY = y * tileSize;
 
             // JOBB OLDAL
-            if (x + 1 < cols) {
-                const neighborId = matrix[y][x + 1];
-                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
-                    const edgeX = baseX + tileSize;
-                    const neighborTile = tileLookup.get(neighborId);
-                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                    const pathList = getBatchPath(fillColor);
+            if (x + 1 < cols && matrix[y][x + 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
+                const edgeX = baseX + tileSize;
+                const neighborTile = tileLookup.get(matrix[y][x + 1]);
+                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                const pathList = getBatchPath(fillColor);
 
-                    for (let i = 0; i < 4; i++) {
-                        const startY = baseY + i * quarterSize;
-                        const endY = startY + quarterSize;
-                        pathList.push({
-                            x0: edgeX, y0: startY,
-                            cp1x: edgeX - quarterSize + getFastJitter(x, y, i, 1), cp1y: startY,
-                            cp2x: edgeX - quarterSize + getFastJitter(x, y, i, 2), cp2y: endY,
-                            x1: edgeX, y1: endY
-                        });
-                    }
+                for (let i = 0; i < 4; i++) {
+                    const startY = baseY + i * quarterSize;
+                    const endY = startY + quarterSize;
+                    pathList.push({
+                        x0: edgeX, y0: startY,
+                        cp1x: edgeX - quarterSize + getFastJitter(x, y, i, 1), cp1y: startY,
+                        cp2x: edgeX - quarterSize + getFastJitter(x, y, i, 2), cp2y: endY,
+                        x1: edgeX, y1: endY
+                    });
                 }
             }
 
             // BAL OLDAL
-            if (x - 1 >= 0) {
-                const neighborId = matrix[y][x - 1];
-                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
-                    const edgeX = baseX;
-                    const neighborTile = tileLookup.get(neighborId);
-                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                    const pathList = getBatchPath(fillColor);
+            if (x - 1 >= 0 && matrix[y][x - 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x - 1])) {
+                const edgeX = baseX;
+                const neighborTile = tileLookup.get(matrix[y][x - 1]);
+                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                const pathList = getBatchPath(fillColor);
 
-                    for (let i = 0; i < 4; i++) {
-                        const startY = baseY + i * quarterSize;
-                        const endY = startY + quarterSize;
-                        pathList.push({
-                            x0: edgeX, y0: startY,
-                            cp1x: edgeX + quarterSize - getFastJitter(x, y, i, 3), cp1y: startY,
-                            cp2x: edgeX + quarterSize - getFastJitter(x, y, i, 4), cp2y: endY,
-                            x1: edgeX, y1: endY
-                        });
-                    }
+                for (let i = 0; i < 4; i++) {
+                    const startY = baseY + i * quarterSize;
+                    const endY = startY + quarterSize;
+                    pathList.push({
+                        x0: edgeX, y0: startY,
+                        cp1x: edgeX + quarterSize - getFastJitter(x, y, i, 3), cp1y: startY,
+                        cp2x: edgeX + quarterSize - getFastJitter(x, y, i, 4), cp2y: endY,
+                        x1: edgeX, y1: endY
+                    });
                 }
             }
 
             // FELSŐ OLDAL
-            if (y - 1 >= 0) {
-                const neighborId = matrix[y - 1][x];
-                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
-                    const edgeY = baseY;
-                    const neighborTile = tileLookup.get(neighborId);
-                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                    const pathList = getBatchPath(fillColor);
+            if (y - 1 >= 0 && matrix[y - 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y - 1][x])) {
+                const edgeY = baseY;
+                const neighborTile = tileLookup.get(matrix[y - 1][x]);
+                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                const pathList = getBatchPath(fillColor);
 
-                    for (let i = 0; i < 4; i++) {
-                        const startX = baseX + i * quarterSize;
-                        const endX = startX + quarterSize;
-                        pathList.push({
-                            x0: startX, y0: edgeY,
-                            cp1x: startX, cp1y: edgeY + quarterSize - getFastJitter(x, y, i, 5),
-                            cp2x: endX, cp2y: edgeY + quarterSize - getFastJitter(x, y, i, 6),
-                            x1: endX, y1: edgeY
-                        });
-                    }
+                for (let i = 0; i < 4; i++) {
+                    const startX = baseX + i * quarterSize;
+                    const endX = startX + quarterSize;
+                    pathList.push({
+                        x0: startX, y0: edgeY,
+                        cp1x: startX, cp1y: edgeY + quarterSize - getFastJitter(x, y, i, 5),
+                        cp2x: endX, cp2y: edgeY + quarterSize - getFastJitter(x, y, i, 6),
+                        x1: endX, y1: edgeY
+                    });
                 }
             }
 
             // ALSÓ OLDAL
-            if (y + 1 < rows) {
-                const neighborId = matrix[y + 1][x];
-                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
-                    const edgeY = baseY + tileSize;
-                    const neighborTile = tileLookup.get(neighborId);
-                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                    const pathList = getBatchPath(fillColor);
+            if (y + 1 < rows && matrix[y + 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
+                const edgeY = baseY + tileSize;
+                const neighborTile = tileLookup.get(matrix[y + 1][x]);
+                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                const pathList = getBatchPath(fillColor);
 
-                    for (let i = 0; i < 4; i++) {
-                        const startX = baseX + i * quarterSize;
-                        const endX = startX + quarterSize;
-                        pathList.push({
-                            x0: startX, y0: edgeY,
-                            cp1x: startX, cp1y: edgeY - quarterSize + getFastJitter(x, y, i, 7),
-                            cp2x: endX, cp2y: edgeY - quarterSize + getFastJitter(x, y, i, 8),
-                            x1: endX, y1: edgeY
-                        });
-                    }
+                for (let i = 0; i < 4; i++) {
+                    const startX = baseX + i * quarterSize;
+                    const endX = startX + quarterSize;
+                    pathList.push({
+                        x0: startX, y0: edgeY,
+                        cp1x: startX, cp1y: edgeY - quarterSize + getFastJitter(x, y, i, 7),
+                        cp2x: endX, cp2y: edgeY - quarterSize + getFastJitter(x, y, i, 8),
+                        x1: endX, y1: edgeY
+                    });
                 }
             }
         }
     }
 
-    // Kirajzolás
     ctx.lineWidth = 1;
     ctx.strokeStyle = "black";
 
@@ -272,6 +274,108 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
             ctx.moveTo(s.x0, s.y0);
             ctx.bezierCurveTo(s.cp1x, s.cp1y, s.cp2x, s.cp2y, s.x1, s.y1);
             ctx.lineTo(s.x0, s.y0);
+        }
+        ctx.fill();
+        ctx.stroke();
+    });
+}
+
+// 2. AZ ÚJ: Sima / Lekerekített stílus (Smooth)
+function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
+    const halfSize = tileSize / 2;
+    const defaultTileColor = tiletypes[0] ? tiletypes[0].color : "#000000";
+    const colorBatches = new Map();
+
+    function getBatchPath(color) {
+        if (!colorBatches.has(color)) {
+            colorBatches.set(color, []);
+        }
+        return colorBatches.get(color);
+    }
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const tileId = matrix[y][x];
+            if (tileId === 0) continue;
+
+            const tiletype = tileLookup.get(tileId);
+            if (!tiletype || typeof tiletype.isIsolatedFrom !== "function") continue;
+
+            const baseX = x * tileSize;
+            const baseY = y * tileSize;
+
+            // JOBB OLDAL
+            if (x + 1 < cols && matrix[y][x + 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
+                const edgeX = baseX + tileSize;
+                const neighborTile = tileLookup.get(matrix[y][x + 1]);
+                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                const pathList = getBatchPath(fillColor);
+
+                pathList.push({
+                    x0: edgeX, y0: baseY,
+                    cp1x: edgeX - halfSize, cp1y: baseY,
+                    cp2x: edgeX - halfSize, cp2y: baseY + tileSize,
+                    x1: edgeX, y1: baseY + tileSize
+                });
+            }
+
+            // BAL OLDAL
+            if (x - 1 >= 0 && matrix[y][x - 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x - 1])) {
+                const edgeX = baseX;
+                const neighborTile = tileLookup.get(matrix[y][x - 1]);
+                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                const pathList = getBatchPath(fillColor);
+
+                pathList.push({
+                    x0: edgeX, y0: baseY,
+                    cp1x: edgeX + halfSize, cp1y: baseY,
+                    cp2x: edgeX + halfSize, cp2y: baseY + tileSize,
+                    x1: edgeX, y1: baseY + tileSize
+                });
+            }
+
+            // FELSŐ OLDAL
+            if (y - 1 >= 0 && matrix[y - 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y - 1][x])) {
+                const edgeY = baseY;
+                const neighborTile = tileLookup.get(matrix[y - 1][x]);
+                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                const pathList = getBatchPath(fillColor);
+
+                pathList.push({
+                    x0: baseX, y0: edgeY,
+                    cp1x: baseX, cp1y: edgeY + halfSize,
+                    cp2x: baseX + tileSize, cp2y: edgeY + halfSize,
+                    x1: baseX + tileSize, y1: edgeY
+                });
+            }
+
+            // ALSÓ OLDAL
+            if (y + 1 < rows && matrix[y + 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
+                const edgeY = baseY + tileSize;
+                const neighborTile = tileLookup.get(matrix[y + 1][x]);
+                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                const pathList.push({
+                    x0: baseX, y0: edgeY,
+                    cp1x: baseX, cp1y: edgeY - halfSize,
+                    cp2x: baseX + tileSize, cp2y: edgeY - halfSize,
+                    x1: baseX + tileSize, y1: edgeY
+                });
+            }
+        }
+    }
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "black";
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    colorBatches.forEach((shapes, color) => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        for (let i = 0; i < shapes.length; i++) {
+            const s = shapes[i];
+            ctx.moveTo(s.x0, s.y0);
+            ctx.bezierCurveTo(s.cp1x, s.cp1y, s.cp2x, s.cp2y, s.x1, s.y1);
         }
         ctx.fill();
         ctx.stroke();
