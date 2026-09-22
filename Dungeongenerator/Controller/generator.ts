@@ -6,6 +6,10 @@ import { tiletypes, activeTileId, setActiveTileId, createNewTileType, removeTile
 // Globális változó a háttérképnek
 export let backgroundImage: HTMLImageElement | null = null;
 
+// --- DUNGEON MÁTRIX ÉS MÉRET ALAPÉRTELMEZÉsei ---
+export let size = 50;
+export const matrix = Array.from({ length: size }, () => Array(size).fill(0));
+
 // --- UNIVERZÁLIS FÁJLBEOLVASÓ (KÉP ÉS DD2VTT) ---
 const mapFileInput = document.getElementById("map-file-input") as HTMLInputElement | null;
 
@@ -26,20 +30,31 @@ if (mapFileInput) {
                         
                         console.log("DD2VTT sikeresen betöltve!", dd2vttData);
 
-                        // A DD2VTT formátum beágyazott képet (resolution + image) tartalmaz
+                        // 1. Mátrix átméretezése a DD2VTT mérete alapján
+                        if (dd2vttData.resolution && dd2vttData.resolution.map_size) {
+                            const mapSize = dd2vttData.resolution.map_size;
+                            size = Math.max(mapSize.x, mapSize.y);
+                            
+                            // Meglévő mátrix nullázása és feltöltése a fájl méretével
+                            matrix.length = 0;
+                            for (let r = 0; r < size; r++) {
+                                matrix[r] = Array(size).fill(2); // Alapértelmezett padló (2), hogy a színek/textúrák látszódjanak
+                            }
+                        }
+
+                        // 2. A DD2VTT formátum beágyazott képének betöltése háttérként
                         if (dd2vttData.image) {
                             const img = new Image();
                             img.onload = () => {
                                 console.log("DD2VTT beágyazott kép betöltve a háttérbe!");
                                 scheduleDraw(matrix, img as any);
                             };
-                            // Ha a DD2VTT tiszta base64 stringet vagy data url-t ad vissza
                             img.src = dd2vttData.image.startsWith("data:") 
                                 ? dd2vttData.image 
                                 : `data:image/png;base64,${dd2vttData.image}`;
+                        } else {
+                            scheduleDraw(matrix);
                         }
-
-                        // Itt a jövőben feldolgozhatod a falakat / rácsokat is (dd2vttData.resolution, dd2vttData.line_of_sight stb.)
 
                     } catch (err) {
                         console.error("Hiba a DD2VTT fájl feldolgozása közben:", err);
@@ -98,10 +113,7 @@ if (!localStorage.getItem("app_lang")) {
     }
 });
 
-// --- DUNGEON MÁTRIX ÉS FOLYOSÓ GENERÁLÁS ---
-let size = 50;
-const matrix = Array.from({ length: size }, () => Array(size).fill(0));
-
+// --- ALAPÉRTELMEZETT SZOBÁK ÉS FOLYOSÓK GENERÁLÁSA (Csak tiszta indításkor) ---
 interface Room {
     id: number;
     height: number;
@@ -134,7 +146,7 @@ for (let i = 0; i < 30; i++) {
         centerx: 0, 
         centery: 0,
         max_connections: maxConn,
-        connections:0
+        connections: 0
     });
 }
 
@@ -155,9 +167,8 @@ rooms.forEach(room => {
     room.centery = y + (room.width / 2);
 });
 
-// 2. Folyosók összekötése - Garantáltan összefüggő dungeon (Minimum Spanning Tree + Extra kapcsolatok)
+// 2. Folyosók összekötése
 if (rooms.length > 0) {
-    // Segédfüggvény a folyosó kirajzolásához két szoba között
     const connectRooms = (r1: Room, r2: Room) => {
         let x = Math.floor(r1.centerx);
         let y = Math.floor(r1.centery);
@@ -178,11 +189,8 @@ if (rooms.length > 0) {
         r2.connections++;
     };
 
-    // 1. lépés: Prim-algoritmus a teljes összefüggőségért (Garantálja, hogy minden szoba elérhető)
     const connectedSet = new Set<Room>();
     const unselectedRooms = [...rooms];
-
-    // Kezdjük az első szobával
     const firstRoom = unselectedRooms.shift()!;
     connectedSet.add(firstRoom);
 
@@ -190,7 +198,6 @@ if (rooms.length > 0) {
         let minDist = Infinity;
         let bestPair: { from: Room; to: Room } | null = null;
 
-        // Keresjük a legközelebbi párt a már csatlakoztatott és a még nem csatlakoztatott halmaz között
         connectedSet.forEach(cRoom => {
             unselectedRooms.forEach(uRoom => {
                 const dx = cRoom.centerx - uRoom.centerx;
@@ -214,7 +221,6 @@ if (rooms.length > 0) {
         }
     }
 
-    // 2. lépés: Extra kapcsolatok hozzáadása a max_connections erejéig (hogy ne csak egyeneságú fa legyen, hanem körök is)
     rooms.forEach(room => {
         while (room.connections < room.max_connections) {
             let otherRooms = rooms.filter(r => r !== room && r.connections < r.max_connections);
@@ -250,7 +256,6 @@ function findClosestRoom(fromX: number, fromY: number, id: number, allRooms: Roo
         const dy = fromY - room.centery;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
-        // Csak akkor veszi figyelembe, ha még van szabad hely a kapcsolatok számára
         if (distance < minDistance) {
             minDistance = distance;
             closestRoom = room;
@@ -259,7 +264,7 @@ function findClosestRoom(fromX: number, fromY: number, id: number, allRooms: Roo
     return closestRoom;
 }
 
-// --- DINAMIKUS VEZÉRLŐK KIRENDERELÉSE (a11y-kompatibilis id & label) ---
+// --- DINAMIKUS VEZÉRLŐK KIRENDERELÉSE ---
 export function renderTileControls() {
     const container = document.getElementById("tile-controls-container");
     if (!container) return;
@@ -330,7 +335,6 @@ export function renderTileControls() {
     `;
     container.appendChild(card);
 
-    // ESEMÉNYKEZELŐK
     const tileSelector = document.getElementById("tile-selector");
     if (tileSelector) {
         tileSelector.addEventListener("change", (e) => {
@@ -410,7 +414,7 @@ export function renderTileControls() {
     const deleteBtn = card.querySelector(".btn-delete-tile");
     if (deleteBtn) {
         deleteBtn.addEventListener("click", (e) => {
-            const target = e.currentTarget as HTMLElement | null; // vagy HTMLButtonElement
+            const target = e.currentTarget as HTMLElement | null;
             if (!target) return;
             const id = parseInt(target.dataset.id || "0", 10);
             removeTileType(id);
@@ -420,11 +424,6 @@ export function renderTileControls() {
     }
 }
 
-/*document.getElementById("addTileBtn").addEventListener("click", () => {
-    createNewTileType();
-    renderTileControls();
-});*/
-
 const addTileBtn = document.getElementById("addTileBtn");
 if (addTileBtn) {
     addTileBtn.addEventListener("click", () => {
@@ -433,7 +432,7 @@ if (addTileBtn) {
     });
 }
 
-// --- VÁSZON INITIALIZÁLÁS ÉS EGÉR ELÉRÉSI BEÁLLÍTÁSOK ---
+// --- VÁSZON INITIALIZÁLÁS ÉS EGÉR KEZELÉS ---
 const canvas = document.getElementById("dungeon") as HTMLCanvasElement;
 const tileSize = 32;
 
@@ -441,32 +440,25 @@ drawDungeon(matrix);
 updateUI();
 
 const exportBtn = document.getElementById("exportBtn");
-if(exportBtn)
-{
+if(exportBtn) {
     exportBtn.addEventListener("click", () => {
-    exportToDd2vtt(matrix, canvas, tileSize);
+        exportToDd2vtt(matrix, canvas, tileSize);
     });
 }
 
-// --- EGÉRREL VALÓ INTERAKTÍV RAJZOLÁS (SKÁLÁZÁS ÉS ECSETMÉRET KORREKCIÓVAL) ---
 let isDrawing = false;
 
 function drawTileAtMouse(e: MouseEvent) {
     const rect = canvas.getBoundingClientRect();
-    
-    // Kiszámoljuk a CSS méret és a belső Canvas felbontás arányát
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
 
-    // Az egér pozíciója a vászon tényleges belső pixelei szerint
     const mouseX = (e.clientX - rect.left) * scaleX;
     const mouseY = (e.clientY - rect.top) * scaleY;
 
-    // Pontos sor és oszlop meghatározása
     const centerCol = Math.floor(mouseX / tileSize);
     const centerRow = Math.floor(mouseY / tileSize);
 
-    // Ecsetméret beolvasása az HTML elemből (sugárként értelmezve: 0 = 1x1, 1 = 3x3, 2 = 5x5 stb.)
     const brushInput = document.getElementById("brush_size") as HTMLInputElement | null;
     const brushRadius = brushInput ? Math.max(0, parseInt(brushInput.value, 10) || 0) : 0;
 
