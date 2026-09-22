@@ -5,7 +5,7 @@ import { getLoadedLineOfSight, getLoadedPortals } from "../Controller/generator.
 let isDrawingScheduled = false;
 export let backgroundImage = null;
 
-// Választható falstílus: "rocky" (szaggatott/barlangos) vagy "smooth" (sima/lekerekített)[cite: 1]
+// Választható falstílus: "rocky" (szaggatott/barlangos) vagy "smooth" (sima/lekerekített sarkú)[cite: 1]
 export let currentWallStyle = "rocky"; 
 
 export function setWallStyle(style) {
@@ -44,7 +44,6 @@ export function scheduleDraw(matrix, bgImg = null) {
     if (!isDrawingScheduled) {
         isDrawingScheduled = true;
         requestAnimationFrame(() => {
-            // Ha nem kap mátrixot, külsőből vagy globálisból is vehetné, de itt maradunk a paraméternél
             drawDungeon(matrix);
             isDrawingScheduled = false;
         });
@@ -280,9 +279,8 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
     });
 }
 
-// 2. AZ ÚJ: Sima / Lekerekített stílus (Smooth)
+// 2. AZ ÚJ: Valódi összefüggő, lekerekített sarkú stílus (Smooth)
 function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
-    const halfSize = tileSize / 2;
     const defaultTileColor = tiletypes[0] ? tiletypes[0].color : "#000000";
     const colorBatches = new Map();
 
@@ -309,14 +307,7 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 const edgeX = baseX + tileSize;
                 const neighborTile = tileLookup.get(matrix[y][x + 1]);
                 const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                const pathList = getBatchPath(fillColor);
-
-                pathList.push({
-                    x0: edgeX, y0: baseY,
-                    cp1x: edgeX - halfSize, cp1y: baseY,
-                    cp2x: edgeX - halfSize, cp2y: baseY + tileSize,
-                    x1: edgeX, y1: baseY + tileSize
-                });
+                getBatchPath(fillColor).push({ x0: edgeX, y0: baseY, x1: edgeX, y1: baseY + tileSize });
             }
 
             // BAL OLDAL
@@ -324,14 +315,7 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 const edgeX = baseX;
                 const neighborTile = tileLookup.get(matrix[y][x - 1]);
                 const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                const pathList = getBatchPath(fillColor);
-
-                pathList.push({
-                    x0: edgeX, y0: baseY,
-                    cp1x: edgeX + halfSize, cp1y: baseY,
-                    cp2x: edgeX + halfSize, cp2y: baseY + tileSize,
-                    x1: edgeX, y1: baseY + tileSize
-                });
+                getBatchPath(fillColor).push({ x0: edgeX, y0: baseY + tileSize, x1: edgeX, y1: baseY });
             }
 
             // FELSŐ OLDAL
@@ -339,14 +323,7 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 const edgeY = baseY;
                 const neighborTile = tileLookup.get(matrix[y - 1][x]);
                 const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                const pathList = getBatchPath(fillColor);
-
-                pathList.push({
-                    x0: baseX, y0: edgeY,
-                    cp1x: baseX, cp1y: edgeY + halfSize,
-                    cp2x: baseX + tileSize, cp2y: edgeY + halfSize,
-                    x1: baseX + tileSize, y1: edgeY
-                });
+                getBatchPath(fillColor).push({ x0: baseX + tileSize, y0: edgeY, x1: baseX, y1: edgeY });
             }
 
             // ALSÓ OLDAL
@@ -354,31 +331,60 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 const edgeY = baseY + tileSize;
                 const neighborTile = tileLookup.get(matrix[y + 1][x]);
                 const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                const pathList = getBatchPath(fillColor); // Jelen van a pathList inicializálás
-
-                pathList.push({
-                    x0: baseX, y0: edgeY,
-                    cp1x: baseX, cp1y: edgeY - halfSize,
-                    cp2x: baseX + tileSize, cp2y: edgeY - halfSize,
-                    x1: baseX + tileSize, y1: edgeY
-                });
+                getBatchPath(fillColor).push({ x0: baseX, y0: edgeY, x1: baseX + tileSize, y1: edgeY });
             }
         }
     }
 
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.strokeStyle = "black";
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
 
-    colorBatches.forEach((shapes, color) => {
+    // Élek összefűzése folytonos útvonalakká, hogy a lineJoin="round" működjön a sarkokon
+    colorBatches.forEach((segments, color) => {
+        if (segments.length === 0) return;
         ctx.fillStyle = color;
-        ctx.beginPath();
-        for (let i = 0; i < shapes.length; i++) {
-            const s = shapes[i];
-            ctx.moveTo(s.x0, s.y0);
-            ctx.bezierCurveTo(s.cp1x, s.cp1y, s.cp2x, s.cp2y, s.x1, s.y1);
+
+        const chains = [];
+        let unvisited = [...segments];
+
+        while (unvisited.length > 0) {
+            let currentChain = [unvisited.pop()];
+            let changed = true;
+
+            while (changed) {
+                changed = false;
+                for (let i = unvisited.length - 1; i >= 0; i--) {
+                    let seg = unvisited[i];
+                    let first = currentChain[0];
+                    let last = currentChain[currentChain.length - 1];
+
+                    if (Math.abs(last.x1 - seg.x0) < 0.1 && Math.abs(last.y1 - seg.y0) < 0.1) {
+                        currentChain.push(seg);
+                        unvisited.splice(i, 1);
+                        changed = true;
+                        break;
+                    } else if (Math.abs(seg.x1 - first.x0) < 0.1 && Math.abs(seg.y1 - first.y0) < 0.1) {
+                        currentChain.unshift(seg);
+                        unvisited.splice(i, 1);
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+            chains.push(currentChain);
         }
+
+        ctx.beginPath();
+        chains.forEach(chain => {
+            if (chain.length === 0) return;
+            ctx.moveTo(chain[0].x0, chain[0].y0);
+            chain.forEach(seg => {
+                ctx.lineTo(seg.x1, seg.y1);
+            });
+        });
+        ctx.closePath();
         ctx.fill();
         ctx.stroke();
     });
