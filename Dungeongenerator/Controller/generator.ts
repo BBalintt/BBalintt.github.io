@@ -10,6 +10,18 @@ export let backgroundImage: HTMLImageElement | null = null;
 export let size = 50;
 export const matrix = Array.from({ length: size }, () => Array(size).fill(0));
 
+// --- DD2VTT-BŐL BETÖLTÖTT FALAK ÉS PORTÁLOK TÁROLÁSA ---
+export let loadedLineOfSight: any[] | null = null;
+export let loadedPortals: any[] | null = null;
+
+export function getLoadedLineOfSight() {
+    return loadedLineOfSight;
+}
+
+export function getLoadedPortals() {
+    return loadedPortals;
+}
+
 // --- UNIVERZÁLIS FÁJLBEOLVASÓ (KÉP ÉS DD2VTT) ---
 const mapFileInput = document.getElementById("map-file-input") as HTMLInputElement | null;
 
@@ -30,21 +42,26 @@ if (mapFileInput) {
                         
                         console.log("DD2VTT sikeresen betöltve!", dd2vttData);
 
-                        // 1. Mátrix átméretezése a DD2VTT mérete alapján
+                        // 1. Falak és portálok eltárolása a megjelenítéshez és újraexportáláshoz
+                        loadedLineOfSight = dd2vttData.line_of_sight || null;
+                        loadedPortals = dd2vttData.portals || null;
+
+                        // 2. Mátrix átméretezése és ÜRESRE állítása (0), 
+                        // hogy ne generáljon saját szobákat/falakat a kép alá
                         if (dd2vttData.resolution && dd2vttData.resolution.map_size) {
                             const mapSize = dd2vttData.resolution.map_size;
                             size = Math.max(mapSize.x, mapSize.y);
                             
-                            // Meglévő mátrix nullázása és feltöltése a fájl méretével
                             matrix.length = 0;
                             for (let r = 0; r < size; r++) {
-                                matrix[r] = Array(size).fill(2); // Alapértelmezett padló (2), hogy a színek/textúrák látszódjanak
+                                matrix[r] = Array(size).fill(0); // 0 = Üres / Nincs csempe, de a falak látszani fognak!
                             }
                         }
 
-                        // 2. A DD2VTT formátum beágyazott képének betöltése háttérként
+                        // 3. A DD2VTT beágyazott képének betöltése háttérként
                         if (dd2vttData.image) {
                             const img = new Image();
+                            backgroundImage = img;
                             img.onload = () => {
                                 console.log("DD2VTT beágyazott kép betöltve a háttérbe!");
                                 scheduleDraw(matrix, img as any);
@@ -53,6 +70,7 @@ if (mapFileInput) {
                                 ? dd2vttData.image 
                                 : `data:image/png;base64,${dd2vttData.image}`;
                         } else {
+                            backgroundImage = null;
                             scheduleDraw(matrix);
                         }
 
@@ -68,6 +86,10 @@ if (mapFileInput) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const img = new Image();
+                    backgroundImage = img;
+                    loadedLineOfSight = null; // Új képnél töröljük a régi falakat
+                    loadedPortals = null;
+
                     img.onload = () => {
                         console.log("Kép sikeresen betöltve háttérként!", img.width, img.height);
                         scheduleDraw(matrix, img as any);  

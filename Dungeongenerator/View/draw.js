@@ -1,5 +1,6 @@
 import { tiletypes } from "../Controller/tileRegistry.js";
 import { drawStoneTexture, drawWoodTexture, drawCobblestoneTexture } from "./textures.js";
+import { getLoadedLineOfSight, getLoadedPortals } from "../Controller/generator.js";
 
 let isDrawingScheduled = false;
 export let backgroundImage = null;
@@ -38,7 +39,6 @@ export function scheduleDraw(matrix, bgImg = null) {
     }
 }
 
-// Frissítsd a drawDungeon függvényt a draw.js-ben:
 export function drawDungeon(matrix, skipTiles = false) {
     const canvas = document.getElementById("dungeon");
     if (!canvas) return;
@@ -54,12 +54,18 @@ export function drawDungeon(matrix, skipTiles = false) {
     // Tiszta háttér biztosítása
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 0. LÉPÉS: Háttérkép kirajzolása (ha van betöltve)
+    // 0. LÉPÉS: Háttérkép kirajzolása (ha van betöltve, pl. DD2VTT beágyazott kép)
     if (backgroundImage) {
         ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
     }
 
     const tileLookup = new Map(tiletypes.map(t => [t.id, t]));
+
+    // Ha vannak betöltött DD2VTT falak (line_of_sight), akkor rajzoljuk ki őket a háttérre
+    const loadedLoS = getLoadedLineOfSight();
+    if (loadedLoS && Array.isArray(loadedLoS)) {
+        drawLoadedLineOfSight(ctx, loadedLoS);
+    }
 
     // Ha nincs tiltva a csempék rajzolása, akkor kirajzoljuk őket (szükség esetén áttetszően)
     if (!skipTiles) {
@@ -82,8 +88,42 @@ export function drawDungeon(matrix, skipTiles = false) {
         ctx.restore();
     }
 
-    // 2. LÉPÉS: Falak (ezek mindig kirajzolódnak, így a falak és árnyékok megmaradnak)
-    drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
+    // 2. LÉPÉS: Procedurális falak (ha nem külső DD2VTT sablont használunk)
+    if (!loadedLoS) {
+        drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
+    }
+}
+
+// DD2VTT Line of Sight (falak) kirajzolása
+function drawLoadedLineOfSight(ctx, lineOfSight) {
+    ctx.save();
+    ctx.strokeStyle = "#111111";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    lineOfSight.forEach(polygon => {
+        if (!Array.isArray(polygon) || polygon.length === 0) return;
+
+        ctx.beginPath();
+        polygon.forEach((pt, index) => {
+            // A DD2VTT koordináták általában pixelben vagy gridSize-hoz viszonyítva adódnak meg
+            const px = pt.x;
+            const py = pt.y;
+
+            if (index === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        });
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
+    });
+
+    ctx.restore();
 }
 
 function renderTileWithTexture(ctx, x, y, tileSize, tileObj) {
