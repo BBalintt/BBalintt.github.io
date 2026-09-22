@@ -1,11 +1,10 @@
 import { translations, currentLang } from "./lang.js";
 import { tiletypes } from "./tileRegistry.js";
-import { drawDungeon } from "../View/draw.js";
+import { drawDungeon, getBackgroundImage } from "../View/draw.js";
 
 export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
-    // CSAK akkor hagyjuk ki a csempéket, ha VAN betöltve háttérkép.
-    // Ha nincs háttér, a csempéket is bele kell menteni a képbe!
-    const skipTilesIfNeeded = (backgroundImage !== null);
+    // Biztonságosan lekérdezzük, hogy van-e aktív háttérkép
+    const skipTilesIfNeeded = (getBackgroundImage() !== null);
 
     // 1. LÉPÉS: Exportálás előtti újrarajzolás
     drawDungeon(matrix, skipTilesIfNeeded);

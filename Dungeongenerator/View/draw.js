@@ -5,6 +5,10 @@ let isDrawingScheduled = false;
 export let backgroundImage = null;
 const roughness = 6;
 
+export function getBackgroundImage() {
+    return backgroundImage;
+}
+
 export function setBackgroundImage(img) {
     backgroundImage = img;
 }
