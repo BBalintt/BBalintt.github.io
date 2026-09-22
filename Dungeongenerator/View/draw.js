@@ -5,7 +5,6 @@ import { getLoadedLineOfSight, getLoadedPortals } from "../Controller/generator.
 let isDrawingScheduled = false;
 export let backgroundImage = null;
 
-// Választható falstílus: "rocky" (szaggatott/barlangos) vagy "smooth" (sima/lekerekített sarkú)[cite: 1]
 export let currentWallStyle = "rocky"; 
 
 export function setWallStyle(style) {
@@ -25,7 +24,6 @@ export function setBackgroundImage(img) {
 
 const roughness = 6;
 
-// Fast Jitter Lookup Table a rocky stílushoz
 const JITTER_TABLE_SIZE = 1024;
 const JITTER_TABLE = new Float32Array(JITTER_TABLE_SIZE);
 for (let i = 0; i < JITTER_TABLE_SIZE; i++) {
@@ -73,20 +71,17 @@ export function drawDungeon(matrix, skipTiles = false) {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 0. LÉPÉS: Háttérkép kirajzolása
     if (backgroundImage) {
         ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
     }
 
     const tileLookup = new Map(tiletypes.map(t => [t.id, t]));
 
-    // DD2VTT falak
     const loadedLoS = getLoadedLineOfSight();
     if (loadedLoS && Array.isArray(loadedLoS)) {
         drawLoadedLineOfSight(ctx, loadedLoS);
     }
 
-    // Csempék rajzolása
     if (!skipTiles) {
         ctx.save();
         if (backgroundImage) {
@@ -106,7 +101,6 @@ export function drawDungeon(matrix, skipTiles = false) {
         ctx.restore();
     }
 
-    // 2. LÉPÉS: Falak kirajzolása a választott stílus szerint (Rocky vagy Smooth)[cite: 1]
     if (!loadedLoS) {
         if (currentWallStyle === "smooth") {
             drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
@@ -160,7 +154,6 @@ function renderTileWithTexture(ctx, x, y, tileSize, tileObj) {
     }
 }
 
-// 1. A RÉGI: Barlangos / Szaggatott stílus (Rocky)
 function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
     const quarterSize = tileSize / 4;
     const defaultTileColor = tiletypes[0] ? tiletypes[0].color : "#000000";
@@ -184,7 +177,6 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
             const baseX = x * tileSize;
             const baseY = y * tileSize;
 
-            // JOBB OLDAL
             if (x + 1 < cols && matrix[y][x + 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
                 const edgeX = baseX + tileSize;
                 const neighborTile = tileLookup.get(matrix[y][x + 1]);
@@ -203,7 +195,6 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 }
             }
 
-            // BAL OLDAL
             if (x - 1 >= 0 && matrix[y][x - 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x - 1])) {
                 const edgeX = baseX;
                 const neighborTile = tileLookup.get(matrix[y][x - 1]);
@@ -222,7 +213,6 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 }
             }
 
-            // FELSŐ OLDAL
             if (y - 1 >= 0 && matrix[y - 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y - 1][x])) {
                 const edgeY = baseY;
                 const neighborTile = tileLookup.get(matrix[y - 1][x]);
@@ -241,7 +231,6 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 }
             }
 
-            // ALSÓ OLDAL
             if (y + 1 < rows && matrix[y + 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
                 const edgeY = baseY + tileSize;
                 const neighborTile = tileLookup.get(matrix[y + 1][x]);
@@ -279,17 +268,12 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
     });
 }
 
-// 2. AZ ÚJ: Valódi összefüggő, lekerekített sarkú stílus (Smooth)
+// NYILAKAT RAJZOLÓ STÍLUS (Smooth)
 function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
-    const defaultTileColor = tiletypes[0] ? tiletypes[0].color : "#000000";
-    const colorBatches = new Map();
-
-    function getBatchPath(color) {
-        if (!colorBatches.has(color)) {
-            colorBatches.set(color, []);
-        }
-        return colorBatches.get(color);
-    }
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#ff0055"; // Jól látható pirosas-rózsaszín szín a nyilakhoz
+    ctx.fillStyle = "#ff0055";
 
     for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
@@ -302,90 +286,61 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
             const baseX = x * tileSize;
             const baseY = y * tileSize;
 
-            // JOBB OLDAL
+            // Megszámoljuk, hány szomszédos irányban van fal/üres határ (vagy aktív irány)
+            let neighborCount = 0;
+            const directions = [];
+
             if (x + 1 < cols && matrix[y][x + 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
-                const edgeX = baseX + tileSize;
-                const neighborTile = tileLookup.get(matrix[y][x + 1]);
-                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                getBatchPath(fillColor).push({ x0: edgeX, y0: baseY, x1: edgeX, y1: baseY + tileSize });
+                neighborCount++;
+                directions.push({ x0: baseX + tileSize, y0: baseY, x1: baseX + tileSize, y1: baseY + tileSize, angle: Math.PI / 2 });
             }
-
-            // BAL OLDAL
             if (x - 1 >= 0 && matrix[y][x - 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x - 1])) {
-                const edgeX = baseX;
-                const neighborTile = tileLookup.get(matrix[y][x - 1]);
-                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                getBatchPath(fillColor).push({ x0: edgeX, y0: baseY + tileSize, x1: edgeX, y1: baseY });
+                neighborCount++;
+                directions.push({ x0: baseX, y0: baseY + tileSize, x1: baseX, y1: baseY, angle: -Math.PI / 2 });
             }
-
-            // FELSŐ OLDAL
             if (y - 1 >= 0 && matrix[y - 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y - 1][x])) {
-                const edgeY = baseY;
-                const neighborTile = tileLookup.get(matrix[y - 1][x]);
-                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                getBatchPath(fillColor).push({ x0: baseX + tileSize, y0: edgeY, x1: baseX, y1: edgeY });
+                neighborCount++;
+                directions.push({ x0: baseX + tileSize, y0: baseY, x1: baseX, y1: baseY, angle: 0 });
+            }
+            if (y + 1 < rows && matrix[y + 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
+                neighborCount++;
+                directions.push({ x0: baseX, y0: baseY + tileSize, x1: baseX + tileSize, y1: baseY + tileSize, angle: Math.PI });
             }
 
-            // ALSÓ OLDAL
-            if (y + 1 < rows && matrix[y + 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
-                const edgeY = baseY + tileSize;
-                const neighborTile = tileLookup.get(matrix[y + 1][x]);
-                const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
-                getBatchPath(fillColor).push({ x0: baseX, y0: edgeY, x1: baseX + tileSize, y1: edgeY });
-            }
+            if (neighborCount === 0) continue;
+
+            // Minden irányra rajzolunk annyi nyilat, ah nhiêu szomszéd van (vagy a szomszédok számának megfelelően)
+            directions.forEach(dir => {
+                const midX = (dir.x0 + dir.x1) / 2;
+                const midY = (dir.y0 + dir.y1) / 2;
+
+                // Annyi nyilat rajzolunk, amennyi a neighborCount
+                for (let i = 0; i < neighborCount; i++) {
+                    // Eltolás, ha több nyíl van, hogy ne olvadjanak egybe
+                    const offset = (i - (neighborCount - 1) / 2) * 8;
+                    
+                    // Vonal meghúzása
+                    ctx.beginPath();
+                    ctx.moveTo(dir.x0, dir.y0);
+                    ctx.lineTo(dir.x1, dir.y1);
+                    ctx.stroke();
+
+                    // Nyílhegy rajzolása a középmezőbe
+                    ctx.save();
+                    ctx.translate(midX, midY);
+                    if (dir.angle !== 0) ctx.rotate(dir.angle);
+                    ctx.translate(0, offset);
+
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-5, -8);
+                    ctx.lineTo(5, -8);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+            });
         }
     }
-
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "black";
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-
-    // Élek összefűzése folytonos útvonalakká, hogy a lineJoin="round" működjön a sarkokon
-    colorBatches.forEach((segments, color) => {
-        if (segments.length === 0) return;
-        ctx.fillStyle = color;
-
-        const chains = [];
-        let unvisited = [...segments];
-
-        while (unvisited.length > 0) {
-            let currentChain = [unvisited.pop()];
-            let changed = true;
-
-            while (changed) {
-                changed = false;
-                for (let i = unvisited.length - 1; i >= 0; i--) {
-                    let seg = unvisited[i];
-                    let first = currentChain[0];
-                    let last = currentChain[currentChain.length - 1];
-
-                    if (Math.abs(last.x1 - seg.x0) < 0.1 && Math.abs(last.y1 - seg.y0) < 0.1) {
-                        currentChain.push(seg);
-                        unvisited.splice(i, 1);
-                        changed = true;
-                        break;
-                    } else if (Math.abs(seg.x1 - first.x0) < 0.1 && Math.abs(seg.y1 - first.y0) < 0.1) {
-                        currentChain.unshift(seg);
-                        unvisited.splice(i, 1);
-                        changed = true;
-                        break;
-                    }
-                }
-            }
-            chains.push(currentChain);
-        }
-
-        ctx.beginPath();
-        chains.forEach(chain => {
-            if (chain.length === 0) return;
-            ctx.moveTo(chain[0].x0, chain[0].y0);
-            chain.forEach(seg => {
-                ctx.lineTo(seg.x1, seg.y1);
-            });
-        });
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-    });
+    ctx.restore();
 }
