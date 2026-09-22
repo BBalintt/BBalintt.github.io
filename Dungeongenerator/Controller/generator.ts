@@ -188,17 +188,18 @@ rooms.forEach(room => {
             }
         }
     } else {
-        // Új, kör / ovális alakú szoba matematikai ellipszis egyenlettel
-        const radiusX = room.width / 2;
-        const radiusY = room.height / 2;
-        const centerX = x + radiusX;
-        const centerY = y + radiusY;
+        // Helyesbített kör / ovális szoba (sor = magasság, oszlop = szélesség)
+        const radiusRow = room.height / 2;
+        const radiusCol = room.width / 2;
+        const centerRow = x + radiusRow;
+        const centerCol = y + radiusCol;
 
         for (let i = x; i < x + room.height; i++) {
             for (let j = y; j < y + room.width; j++) {
-                const dx = (j - centerY) / radiusY;
-                const dy = (i - centerX) / radiusX;
-                if (dx * dx + dy * dy <= 1.0) {
+                const dr = (i - centerRow) / radiusRow;
+                const dc = (j - centerCol) / radiusCol;
+                
+                if (dr * dr + dc * dc <= 1.0) {
                     if (i >= 0 && i < size && j >= 0 && j < size) {
                         matrix[i][j] = 2; // Szoba (ID: 2)
                     }
