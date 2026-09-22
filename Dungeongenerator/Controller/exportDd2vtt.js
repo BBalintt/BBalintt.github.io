@@ -10,7 +10,6 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
     drawDungeon(matrix, skipTilesIfNeeded);
 
     const size = matrix.length;
-    const los = [];
     const portals = [];
 
     // Helper: Verify grid coordinates are within bounds
@@ -24,6 +23,11 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
     };
 
     const rawDoorSegments = [];
+    const rawLosSegments = []; // Itt gyűjtjük az összes sima falat/LOS szakaszt is
+
+    const addLosSegment = (p1, p2) => {
+        rawLosSegments.push({ p1: { ...p1 }, p2: { ...p2 } });
+    };
 
     // Iterate through all cells to check right (East) and bottom (South) edges
     for (let r = 0; r < size; r++) {
@@ -44,10 +48,10 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
             );
 
             if (r === 0 && isFloorA) {
-                los.push([{ x: c, y: r }, { x: c + 1, y: r }]);
+                addLosSegment({ x: c, y: r }, { x: c + 1, y: r });
             }
             if (c === 0 && isFloorA) {
-                los.push([{ x: c, y: r }, { x: c, y: r + 1 }]);
+                addLosSegment({ x: c, y: r }, { x: c, y: r + 1 });
             }
         }
     }
@@ -60,7 +64,7 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
         const isFloorB = tileB ? tileB.isFloor : false;
 
         if (isFloorA !== isFloorB) {
-            los.push([p1, p2]);
+            addLosSegment(p1, p2);
             return;
         }
 
@@ -125,7 +129,6 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
     function simplifySegments(segments) {
         if (segments.length <= 1) return segments;
 
-        // Vesszük a szakaszok pontjait páronként [{p1, p2}, ...]
         let lines = segments.map(s => ({ p1: { ...s.p1 }, p2: { ...s.p2 } }));
         let merged = true;
 
@@ -136,12 +139,10 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
                     const l1 = lines[i];
                     const l2 = lines[j];
 
-                    // Ellenőrizzük, hogy vízszintesek vagy függőlegesek-e, és összeérnek-e
                     const isHorizontal1 = l1.p1.y === l1.p2.y;
                     const isHorizontal2 = l2.p1.y === l2.p2.y;
 
                     if (isHorizontal1 && isHorizontal2 && l1.p1.y === l2.p1.y) {
-                        // Vízszintes vonalak összevonása, ha érintkeznek
                         const minX1 = Math.min(l1.p1.x, l1.p2.x);
                         const maxX1 = Math.max(l1.p1.x, l1.p2.x);
                         const minX2 = Math.min(l2.p1.x, l2.p2.x);
@@ -155,7 +156,6 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
                             break;
                         }
                     } else if (!isHorizontal1 && !isHorizontal2 && l1.p1.x === l2.p1.x) {
-                        // Függőleges vonalak összevonása, ha érintkeznek
                         const minY1 = Math.min(l1.p1.y, l1.p2.y);
                         const maxY1 = Math.max(l1.p1.y, l1.p2.y);
                         const minY2 = Math.min(l2.p1.y, l2.p2.y);
@@ -208,22 +208,20 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
             }
         });
 
-        // A többi szakaszt kiszűrjük (ahol nem a portál van)
+        // A többi szakaszt átadjuk a sima falak listájának
         const nonPortalSegments = group.filter(s => s !== bestSegment);
-        
-        // Összevonjuk az azonos vonal mentén lévő szakaszokat egyetlen hosszú vonallá
-        const simplifiedLines = simplifySegments(nonPortalSegments);
-
-        simplifiedLines.forEach(line => {
-            los.push([line.p1, line.p2]);
-        });
+        nonPortalSegments.forEach(s => addLosSegment(s.p1, s.p2));
     });
+
+    // Az ÖSSZES falat együttesen összevonjuk a collinear / egymás melletti szakaszok alapján
+    const simplifiedAllWalls = simplifySegments(rawLosSegments);
+    const los = simplifiedAllWalls.map(line => [line.p1, line.p2]);
 
     // Létrehozzuk a Base64 képet a csempe-nélküli változatról
     const dataUrl = canvas.toDataURL("image/png");
     const base64Image = dataUrl.replace(/^data:image\/(png|jpg);base64,/, "");
 
-    // 2. LÉPÉS: Miután lementettük az adatot, azonnal visszaállítjuk a normális nézetet (csempékkel együtt)
+    // 2. LÉPÉS: Visszaállítjuk a normális nézetet (csempékkel együtt)
     drawDungeon(matrix, false);
 
     const dd2vttData = {
