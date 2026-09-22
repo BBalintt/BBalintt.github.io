@@ -268,7 +268,7 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
     });
 }
 
-// 2. Sima stílus: Sarok-háromszögek rajzolása a szomszédos színekhez igazodva
+// 2. Sima stílus: Sarok-háromszögek homorú átfogóval, 1 pixeles kifolyással
 function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
     const defaultTileColor = tiletypes[0] ? tiletypes[0].color : "#000000";
 
@@ -285,68 +285,65 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
             const baseX = x * tileSize;
             const baseY = y * tileSize;
 
-            const hasTop = y - 1 >= 0 && matrix[y - 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y - 1][x]);
-            const hasBottom = y + 1 < rows && matrix[y + 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y + 1][x]);
-            const hasLeft = x - 1 >= 0 && matrix[y][x - 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x - 1]);
-            const hasRight = x + 1 < cols && matrix[y][x + 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x + 1]);
+            const topId = y - 1 >= 0 ? matrix[y - 1][x] : null;
+            const bottomId = y + 1 < rows ? matrix[y + 1][x] : null;
+            const leftId = x - 1 >= 0 ? matrix[y][x - 1] : null;
+            const rightId = x + 1 < cols ? matrix[y][x + 1] : null;
 
-            // Alap szín a csempéhez
-            const baseColor = (tiletype === tiletypes[0]) ? defaultTileColor : tiletype.color;
-            const cornerSize = tileSize / 3;
+            const hasTop = topId !== null && topId !== tileId && tiletype.isIsolatedFrom(topId);
+            const hasBottom = bottomId !== null && bottomId !== tileId && tiletype.isIsolatedFrom(bottomId);
+            const hasLeft = leftId !== null && leftId !== tileId && tiletype.isIsolatedFrom(leftId);
+            const hasRight = rightId !== null && rightId !== tileId && tiletype.isIsolatedFrom(rightId);
+
+            const outward = 1;         // Pontosan 1 pixel kifelé
+            const inward = tileSize / 2; // Befelé a szoba feléig
+
+            const getNeighborColor = (neighborId) => {
+                if (neighborId === null || neighborId === 0) return defaultTileColor;
+                const neighborType = tileLookup.get(neighborId);
+                return neighborType ? neighborType.color : defaultTileColor;
+            };
 
             // FELSŐ-JOBB SAROK
             if (hasTop && hasRight) {
-                // Megnézzük, hogy a felső vagy jobb oldali szomszéd megegyezik-e színben/típusban
-                let cornerColor = baseColor;
-                if (y - 1 >= 0 && matrix[y - 1][x] === tileId) {
-                    cornerColor = baseColor;
-                } else if (x + 1 < cols && matrix[y][x + 1] === tileId) {
-                    cornerColor = baseColor;
-                } else {
-                    // Ha a szomszédos üres terület vagy más típus, ellenőrizzük a diagonális / szomszédos csempét
-                    const topTile = y - 1 >= 0 ? tileLookup.get(matrix[y - 1][x]) : null;
-                    const rightTile = x + 1 < cols ? tileLookup.get(matrix[y][x + 1]) : null;
-                    if (topTile && topTile.color === tiletype.color) cornerColor = topTile.color;
-                }
-
-                ctx.fillStyle = cornerColor;
+                ctx.fillStyle = getNeighborColor(rightId);
                 ctx.beginPath();
-                ctx.moveTo(baseX + tileSize, baseY);
-                ctx.lineTo(baseX + tileSize, baseY + cornerSize);
-                ctx.lineTo(baseX + tileSize - cornerSize, baseY);
+                ctx.moveTo(baseX + tileSize + outward, baseY - outward);
+                ctx.lineTo(baseX + tileSize, baseY + inward);
+                ctx.quadraticCurveTo(baseX + tileSize, baseY, baseX + tileSize - inward, baseY);
                 ctx.closePath();
                 ctx.fill();
             }
 
             // FELSŐ-BAL SAROK
             if (hasTop && hasLeft) {
-                ctx.fillStyle = baseColor;
+                ctx.fillStyle = getNeighborColor(leftId);
                 ctx.beginPath();
-                ctx.moveTo(baseX, baseY);
-                ctx.lineTo(baseX + cornerSize, baseY);
-                ctx.lineTo(baseX, baseY + cornerSize);
+                ctx.moveTo(baseX - outward, baseY - outward);
+                ctx.lineTo(baseX + inward, baseY);
+                ctx.quadraticCurveTo(baseX, baseY, baseX, baseY + inward);
                 ctx.closePath();
                 ctx.fill();
             }
 
             // ALSÓ-JOBB SAROK
             if (hasBottom && hasRight) {
-                ctx.fillStyle = baseColor;
+                ctx.fillStyle = getNeighborColor(rightId);
                 ctx.beginPath();
-                ctx.moveTo(baseX + tileSize, baseY + tileSize);
-                ctx.lineTo(baseX + tileSize - cornerSize, baseY + tileSize);
-                ctx.lineTo(baseX + tileSize, baseY + tileSize - cornerSize);
+                ctx.moveTo(baseX + tileSize + outward, baseY + tileSize + outward);
+                ctx.lineTo(baseX + tileSize - inward, baseY + tileSize);
+                ctx.quadraticCurveTo(baseX + tileSize, baseY + tileSize, baseX + tileSize, baseY + tileSize - inward);
                 ctx.closePath();
                 ctx.fill();
             }
 
             // ALSÓ-BAL SAROK
             if (hasBottom && hasLeft) {
-                ctx.fillStyle = baseColor;
+                ctx.fillStyle = getNeighborColor(leftId);
                 ctx.beginPath();
-                ctx.moveTo(baseX, baseY + tileSize);
-                ctx.lineTo(baseX, baseY + tileSize - cornerSize);
-                ctx.lineTo(baseX + cornerSize, baseY + tileSize);
+                ctx.moveTo(baseX - outward, baseY + tileSize + outward);
+                ctx.lineTo(baseX, baseY + tileSize - inward);
+                ctx.quadraticCurveTo(baseX, baseY + tileSize, baseX + inward, baseY + tileSize);
                 ctx.closePath();
                 ctx.fill();
             }
