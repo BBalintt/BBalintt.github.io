@@ -5,7 +5,7 @@ import { getLoadedLineOfSight, getLoadedPortals } from "../Controller/generator.
 let isDrawingScheduled = false;
 export let backgroundImage = null;
 
-// Választható falstílus: "rocky" (szaggatott/barlangos) vagy "smooth" (sima/lekerekített)
+// Választható falstílus: "rocky" (szaggatott/barlangos) vagy "smooth" (sima/lekerekített)[cite: 1]
 export let currentWallStyle = "rocky"; 
 
 export function setWallStyle(style) {
@@ -107,7 +107,7 @@ export function drawDungeon(matrix, skipTiles = false) {
         ctx.restore();
     }
 
-    // 2. LÉPÉS: Falak kirajzolása a választott stílus szerint (Rocky vagy Smooth)
+    // 2. LÉPÉS: Falak kirajzolása a választott stílus szerint (Rocky vagy Smooth)[cite: 1]
     if (!loadedLoS) {
         if (currentWallStyle === "smooth") {
             drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
@@ -354,6 +354,8 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                 const edgeY = baseY + tileSize;
                 const neighborTile = tileLookup.get(matrix[y + 1][x]);
                 const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                const pathList = getBatchPath(fillColor); // Jelen van a pathList inicializálás
+
                 pathList.push({
                     x0: baseX, y0: edgeY,
                     cp1x: baseX, cp1y: edgeY - halfSize,
