@@ -1,21 +1,22 @@
 import { translations, currentLang } from "./lang.js";
 import { tiletypes } from "./tileRegistry.js";
 import { drawDungeon, getBackgroundImage } from "../View/draw.js";
+import { getCustomPortals } from "./generator.js";
 
 export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
-    // Biztonságosan lekérdezzük, hogy van-e aktív háttérkép
+    // Biztonságosan lekérdezzük, hogy van-e aktív háttérkép[cite: 11]
     const skipTilesIfNeeded = (getBackgroundImage() !== null);
 
-    // 1. LÉPÉS: Exportálás előtti újrarajzolás
+    // 1. LÉPÉS: Exportálás előtti újrarajzolás[cite: 11]
     drawDungeon(matrix, skipTilesIfNeeded);
 
     const size = matrix.length;
-    const portals = [];
+    let portals = [];
 
-    // Helper: Verify grid coordinates are within bounds
+    // Helper: Verify grid coordinates are within bounds[cite: 11]
     const isValid = (r, c) => r >= 0 && r < size && c >= 0 && c < size;
 
-    // Helper: Retrieve tile object safely
+    // Helper: Retrieve tile object safely[cite: 11]
     const getTile = (r, c) => {
         if (!isValid(r, c)) return null;
         const tileId = matrix[r][c];
@@ -23,13 +24,13 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
     };
 
     const rawDoorSegments = [];
-    const rawLosSegments = []; // Itt gyűjtjük az összes sima falat/LOS szakaszt is
+    const rawLosSegments = []; // Itt gyűjtjük az összes sima falat/LOS szakaszt is[cite: 11]
 
     const addLosSegment = (p1, p2) => {
         rawLosSegments.push({ p1: { ...p1 }, p2: { ...p2 } });
     };
 
-    // Iterate through all cells to check right (East) and bottom (South) edges
+    // Iterate through all cells to check right (East) and bottom (South) edges[cite: 11]
     for (let r = 0; r < size; r++) {
         for (let c = 0; c < size; c++) {
             const tileA = getTile(r, c);
@@ -125,7 +126,7 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
         });
     };
 
-    // Segédfüggvény az azonos vonal mentén fekvő (collinear) szakaszok összevonására
+    // Segédfüggvény az azonos vonal mentén fekvő (collinear) szakaszok összevonására[cite: 11]
     function simplifySegments(segments) {
         if (segments.length <= 1) return segments;
 
@@ -176,52 +177,69 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
         return lines;
     }
 
-    groups.forEach(group => {
-        if (group.length === 0) return;
+    // Kézi portálok lekérdezése[cite: 12]
+    const customPortals = getCustomPortals();
 
-        let avgX = 0, avgY = 0;
-        group.forEach(s => {
-            avgX += (s.p1.x + s.p2.x) / 2;
-            avgY += (s.p1.y + s.p2.y) / 2;
+    if (customPortals && customPortals.length > 0) {
+        // Ha a felhasználó szerkesztette kézzel, ezeket mentjük[cite: 12]
+        portals = customPortals.map(p => ({
+            position: { x: p.position.x / tileSize, y: p.position.y / tileSize },
+            bounds: p.bounds.map(b => ({ x: b.x / tileSize, y: b.y / tileSize })),
+            rotation: 0,
+            closed: true,
+            freestanding: false,
+            portal_type: 0
+        }));
+
+        // Minden nyers ajtó/fal szegmens a Los-ba kerül falazatként
+        rawDoorSegments.forEach(s => addLosSegment(s.p1, s.p2));
+    } else {
+        // Automatikus portálszámítás logikája[cite: 11]
+        groups.forEach(group => {
+            if (group.length === 0) return;
+
+            let avgX = 0, avgY = 0;
+            group.forEach(s => {
+                avgX += (s.p1.x + s.p2.x) / 2;
+                avgY += (s.p1.y + s.p2.y) / 2;
+            });
+            avgX /= group.length;
+            avgY /= group.length;
+
+            let bestSegment = group[0];
+            let minDistanceSq = Infinity;
+
+            group.forEach(s => {
+                const midX = (s.p1.x + s.p2.x) / 2;
+                const midY = (s.p1.y + s.p2.y) / 2;
+                const distSq = Math.pow(midX - avgX, 2) + Math.pow(midY - avgY, 2);
+
+                if (distSq < minDistanceSq) {
+                    minDistanceSq = distSq;
+                    bestSegment = s;
+                }
+            });
+
+            group.forEach(s => {
+                if (s === bestSegment) {
+                    pushPortal(s.p1, s.p2);
+                }
+            });
+
+            const nonPortalSegments = group.filter(s => s !== bestSegment);
+            nonPortalSegments.forEach(s => addLosSegment(s.p1, s.p2));
         });
-        avgX /= group.length;
-        avgY /= group.length;
+    }
 
-        let bestSegment = group[0];
-        let minDistanceSq = Infinity;
-
-        group.forEach(s => {
-            const midX = (s.p1.x + s.p2.x) / 2;
-            const midY = (s.p1.y + s.p2.y) / 2;
-            const distSq = Math.pow(midX - avgX, 2) + Math.pow(midY - avgY, 2);
-
-            if (distSq < minDistanceSq) {
-                minDistanceSq = distSq;
-                bestSegment = s;
-            }
-        });
-
-        // Kiválasztjuk a portált (ajtót)
-        group.forEach(s => {
-            if (s === bestSegment) {
-                pushPortal(s.p1, s.p2);
-            }
-        });
-
-        // A többi szakaszt átadjuk a sima falak listájának
-        const nonPortalSegments = group.filter(s => s !== bestSegment);
-        nonPortalSegments.forEach(s => addLosSegment(s.p1, s.p2));
-    });
-
-    // Az ÖSSZES falat együttesen összevonjuk a collinear / egymás melletti szakaszok alapján
+    // Az ÖSSZES falat együttesen összevonjuk[cite: 11]
     const simplifiedAllWalls = simplifySegments(rawLosSegments);
     const los = simplifiedAllWalls.map(line => [line.p1, line.p2]);
 
-    // Létrehozzuk a Base64 képet a csempe-nélküli változatról
+    // Létrehozzuk a Base64 képet a csempe-nélküli változatról[cite: 11]
     const dataUrl = canvas.toDataURL("image/png");
     const base64Image = dataUrl.replace(/^data:image\/(png|jpg);base64,/, "");
 
-    // 2. LÉPÉS: Visszaállítjuk a normális nézetet (csempékkel együtt)
+    // 2. LÉPÉS: Visszaállítjuk a normális nézetet[cite: 11]
     drawDungeon(matrix, false);
 
     const dd2vttData = {

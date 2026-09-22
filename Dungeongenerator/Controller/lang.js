@@ -22,7 +22,14 @@ export const translations = {
         tileCorridor: "Folyosó",
         tileRoom: "Szoba",
         newTileDefaultName: "Új típus",
-        bgImageLabel: "Háttérkép betöltése"
+        bgImageLabel: "Háttérkép betöltése",
+        // Új feliratok
+        modeDraw: "🖌️ Csempézés",
+        modeDoor: "🚪 Ajtó szerkesztés",
+        wallStyleLabel: "Falstílus:",
+        wallStyleRocky: "Barlangos (Rocky)",
+        wallStyleSmooth: "Lekerekített (Smooth)",
+        mapFileLabel: "Térkép vagy háttér betöltése"
     },
     en: {
         docTitle: "Map Generator",
@@ -45,7 +52,14 @@ export const translations = {
         tileCorridor: "Corridor",
         tileRoom: "Room",
         newTileDefaultName: "New Type",
-        bgImageLabel: "Load Background Image"
+        bgImageLabel: "Load Background Image",
+        // New labels
+        modeDraw: "🖌️ Drawing",
+        modeDoor: "🚪 Edit Doors",
+        wallStyleLabel: "Wall Style:",
+        wallStyleRocky: "Rocky",
+        wallStyleSmooth: "Smooth",
+        mapFileLabel: "Load map or background"
     },
     de: {
         docTitle: "Karten-Generator",
@@ -68,7 +82,14 @@ export const translations = {
         tileCorridor: "Korridor",
         tileRoom: "Raum",
         newTileDefaultName: "Neuer Typ",
-        bgImageLabel: "Hintergrundbild laden"
+        bgImageLabel: "Hintergrundbild laden",
+        // Neue Beschriftungen
+        modeDraw: "🖌️ Zeichnen",
+        modeDoor: "🚪 Türen bearbeiten",
+        wallStyleLabel: "Wandstil:",
+        wallStyleRocky: "Felsig (Rocky)",
+        wallStyleSmooth: "Glatt (Smooth)",
+        mapFileLabel: "Karte oder Hintergrund laden"
     },
     es: {
         docTitle: "Generador de Mapas",
@@ -91,7 +112,14 @@ export const translations = {
         tileCorridor: "Pasillo",
         tileRoom: "Habitación",
         newTileDefaultName: "Nuevo Tipo",
-        bgImageLabel: "Cargar imagen de fondo"
+        bgImageLabel: "Cargar imagen de fondo",
+        // Nuevas etiquetas
+        modeDraw: "🖌️ Dibujar",
+        modeDoor: "🚪 Editar Puertas",
+        wallStyleLabel: "Estilo de pared:",
+        wallStyleRocky: "Rocoso (Rocky)",
+        wallStyleSmooth: "Suave (Smooth)",
+        mapFileLabel: "Cargar mapa o fondo"
     },
     fr: {
         docTitle: "Générateur de Cartes",
@@ -114,7 +142,14 @@ export const translations = {
         tileCorridor: "Couloir",
         tileRoom: "Pièce",
         newTileDefaultName: "Nouveau Type",
-        bgImageLabel: "Charger l'image de fond"
+        bgImageLabel: "Charger l'image de fond",
+        // Nouvelles étiquettes
+        modeDraw: "🖌️ Dessiner",
+        modeDoor: "🚪 Modifier Portes",
+        wallStyleLabel: "Style de mur :",
+        wallStyleRocky: "Rocheux (Rocky)",
+        wallStyleSmooth: "Lisse (Smooth)",
+        mapFileLabel: "Charger carte ou fond"
     }
 };
 
