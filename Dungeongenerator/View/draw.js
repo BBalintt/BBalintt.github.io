@@ -4,6 +4,7 @@ import { getLoadedLineOfSight, getLoadedPortals } from "../Controller/generator.
 
 let isDrawingScheduled = false;
 export let backgroundImage = null;
+const roughness = 6;
 
 export function getBackgroundImage() {
     return backgroundImage;
@@ -11,6 +12,18 @@ export function getBackgroundImage() {
 
 export function setBackgroundImage(img) {
     backgroundImage = img;
+}
+
+// Fast Jitter Lookup Table
+const JITTER_TABLE_SIZE = 1024;
+const JITTER_TABLE = new Float32Array(JITTER_TABLE_SIZE);
+for (let i = 0; i < JITTER_TABLE_SIZE; i++) {
+    JITTER_TABLE[i] = Math.random() * roughness;
+}
+
+function getFastJitter(x, y, i, side) {
+    const index = (x * 31 + y * 17 + i * 7 + side * 13) & (JITTER_TABLE_SIZE - 1);
+    return JITTER_TABLE[index];
 }
 
 export function scheduleDraw(matrix, bgImg = null) {
@@ -38,29 +51,30 @@ export function drawDungeon(matrix, skipTiles = false) {
     canvas.width = cols * tileSize;
     canvas.height = rows * tileSize;
 
+    // Tiszta háttér biztosítása
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 0. LÉPÉS: Háttérkép kirajzolása
+    // 0. LÉPÉS: Háttérkép kirajzolása (ha van betöltve, pl. DD2VTT beágyazott kép)
     if (backgroundImage) {
         ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
     }
 
     const tileLookup = new Map(tiletypes.map(t => [t.id, t]));
 
-    // Ha vannak betöltött DD2VTT falak, kirajzoljuk őket
+    // Ha vannak betöltött DD2VTT falak (line_of_sight), akkor rajzoljuk ki őket a háttérre
     const loadedLoS = getLoadedLineOfSight();
     if (loadedLoS && Array.isArray(loadedLoS)) {
         drawLoadedLineOfSight(ctx, loadedLoS);
     }
 
-    // Ha nincs tiltva a csempék rajzolása
+    // Ha nincs tiltva a csempék rajzolása, akkor kirajzoljuk őket
     if (!skipTiles) {
         ctx.save();
         if (backgroundImage) {
             ctx.globalAlpha = 0.4;
         }
 
-        // 1. LÉPÉS: Csempék és textúrák (itt is lágyíthatjuk a kitöltést)
+        // 1. LÉPÉS: Csempék és textúrák
         for (let y = 0; y < rows; y++) {
             for (let x = 0; x < cols; x++) {
                 const tileId = matrix[y][x];
@@ -74,13 +88,13 @@ export function drawDungeon(matrix, skipTiles = false) {
         ctx.restore();
     }
 
-    // 2. LÉPÉS: Sima, lekerekített falak Marching Squares algoritmussal
+    // 2. LÉPÉS: Procedurális falak (ha nem külső DD2VTT sablont használunk)
     if (!loadedLoS) {
-        drawMarchingSquaresWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
+        drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup);
     }
 }
 
-// DD2VTT Line of Sight kirajzolása
+// DD2VTT Line of Sight (falak) kirajzolása
 function drawLoadedLineOfSight(ctx, lineOfSight) {
     ctx.save();
     ctx.strokeStyle = "#111111";
@@ -91,15 +105,23 @@ function drawLoadedLineOfSight(ctx, lineOfSight) {
 
     lineOfSight.forEach(polygon => {
         if (!Array.isArray(polygon) || polygon.length === 0) return;
+
         ctx.beginPath();
         polygon.forEach((pt, index) => {
-            if (index === 0) ctx.moveTo(pt.x, pt.y);
-            else ctx.lineTo(pt.x, pt.y);
+            const px = pt.x;
+            const py = pt.y;
+
+            if (index === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
         });
         ctx.closePath();
         ctx.stroke();
         ctx.fill();
     });
+
     ctx.restore();
 }
 
@@ -125,82 +147,133 @@ function renderTileWithTexture(ctx, x, y, tileSize, tileObj) {
     }
 }
 
-// --- MARCHING SQUARES SIMA FAL ÉS KONTÚR ALGORITMUS ---
-function drawMarchingSquaresWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
-    ctx.save();
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.fillStyle = "#333333";
+function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
+    const quarterSize = tileSize / 4;
+    const defaultTileColor = tiletypes[0] ? tiletypes[0].color : "#000000";
+    const colorBatches = new Map();
 
-    // Segédfüggvény a cellaérték lekérésére (határokon túl 0)
-    const getVal = (r, c) => {
-        if (r < 0 || r >= rows || c < 0 || c >= cols) return 0;
-        return matrix[r][c] !== 0 ? 1 : 0;
-    };
+    function getBatchPath(color) {
+        if (!colorBatches.has(color)) {
+            colorBatches.set(color, []);
+        }
+        return colorBatches.get(color);
+    }
 
-    ctx.beginPath();
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const tileId = matrix[y][x];
+            if (tileId === 0) continue;
 
-    // Végigmegyünk a rács celláin és a sarkaikon (vertexek)
-    for (let r = 0; r <= rows; r++) {
-        for (let c = 0; c <= cols; c++) {
-            // A 2x2-es cellablokk 4 sarkának értéke a rácspontok körül
-            const topLeft = getVal(r - 1, c - 1);
-            const topRight = getVal(r - 1, c);
-            const bottomRight = getVal(r, c);
-            const bottomLeft = getVal(r, c - 1);
+            const tiletype = tileLookup.get(tileId);
+            if (!tiletype || typeof tiletype.isIsolatedFrom !== "function") continue;
 
-            // Bináris index kiszámítása a sarkok alapján (Marching Squares index)
-            const index = (topLeft << 3) | (topRight << 2) | (bottomRight << 1) | bottomLeft;
+            const baseX = x * tileSize;
+            const baseY = y * tileSize;
 
-            if (index === 0 || index === 15) continue; // Teljesen üres vagy teljesen teli, nincs határvonal
+            // JOBB OLDAL
+            if (x + 1 < cols) {
+                const neighborId = matrix[y][x + 1];
+                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
+                    const edgeX = baseX + tileSize;
+                    const neighborTile = tileLookup.get(neighborId);
+                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                    const pathList = getBatchPath(fillColor);
 
-            const x = c * tileSize;
-            const y = r * tileSize;
-            const half = tileSize / 2;
+                    for (let i = 0; i < 4; i++) {
+                        const startY = baseY + i * quarterSize;
+                        const endY = startY + quarterSize;
+                        pathList.push({
+                            x0: edgeX, y0: startY,
+                            cp1x: edgeX - quarterSize + getFastJitter(x, y, i, 1), cp1y: startY,
+                            cp2x: edgeX - quarterSize + getFastJitter(x, y, i, 2), cp2y: endY,
+                            x1: edgeX, y1: endY
+                        });
+                    }
+                }
+            }
 
-            // Alap élezési/felezési pontok a cellák élein
-            const topMid = { x: x - half, y: y - tileSize };
-            const rightMid = { x: x, y: y - half };
-            const bottomMid = { x: x - half, y: y };
-            const leftMid = { x: x - tileSize, y: y - half };
+            // BAL OLDAL
+            if (x - 1 >= 0) {
+                const neighborId = matrix[y][x - 1];
+                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
+                    const edgeX = baseX;
+                    const neighborTile = tileLookup.get(neighborId);
+                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                    const pathList = getBatchPath(fillColor);
 
-            // Marching squares esetek alapján sima ívek / vonalak rajzolása
-            ctx.moveTo(topMid.x, topMid.y);
-            
-            switch (index) {
-                // Egyszerű sarkok és élek lekerekítése
-                case 1: case 14:
-                    ctx.quadraticCurveTo(x - tileSize, y, leftMid.x, leftMid.y);
-                    break;
-                case 2: case 13:
-                    ctx.quadraticCurveTo(x, y, bottomMid.x, bottomMid.y);
-                    break;
-                case 4: case 11:
-                    ctx.quadraticCurveTo(x, y - tileSize, rightMid.x, rightMid.y);
-                    break;
-                case 8: case 7:
-                    ctx.quadraticCurveTo(x - tileSize, y - tileSize, topMid.x, topMid.y);
-                    break;
-                // Nyerges / átló elemek kezelése az L-alakú sima kanyarokhoz
-                case 5:
-                    ctx.lineTo(rightMid.x, rightMid.y);
-                    ctx.moveTo(topMid.x, topMid.y);
-                    ctx.lineTo(bottomMid.x, bottomMid.y);
-                    break;
-                case 10:
-                    ctx.lineTo(leftMid.x, leftMid.y);
-                    ctx.moveTo(bottomMid.x, bottomMid.y);
-                    ctx.lineTo(topMid.x, topMid.y);
-                    break;
-                default:
-                    ctx.lineTo(rightMid.x, rightMid.y);
-                    break;
+                    for (let i = 0; i < 4; i++) {
+                        const startY = baseY + i * quarterSize;
+                        const endY = startY + quarterSize;
+                        pathList.push({
+                            x0: edgeX, y0: startY,
+                            cp1x: edgeX + quarterSize - getFastJitter(x, y, i, 3), cp1y: startY,
+                            cp2x: edgeX + quarterSize - getFastJitter(x, y, i, 4), cp2y: endY,
+                            x1: edgeX, y1: endY
+                        });
+                    }
+                }
+            }
+
+            // FELSŐ OLDAL
+            if (y - 1 >= 0) {
+                const neighborId = matrix[y - 1][x];
+                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
+                    const edgeY = baseY;
+                    const neighborTile = tileLookup.get(neighborId);
+                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                    const pathList = getBatchPath(fillColor);
+
+                    for (let i = 0; i < 4; i++) {
+                        const startX = baseX + i * quarterSize;
+                        const endX = startX + quarterSize;
+                        pathList.push({
+                            x0: startX, y0: edgeY,
+                            cp1x: startX, cp1y: edgeY + quarterSize - getFastJitter(x, y, i, 5),
+                            cp2x: endX, cp2y: edgeY + quarterSize - getFastJitter(x, y, i, 6),
+                            x1: endX, y1: edgeY
+                        });
+                    }
+                }
+            }
+
+            // ALSÓ OLDAL
+            if (y + 1 < rows) {
+                const neighborId = matrix[y + 1][x];
+                if (neighborId !== tileId && tiletype.isIsolatedFrom(neighborId)) {
+                    const edgeY = baseY + tileSize;
+                    const neighborTile = tileLookup.get(neighborId);
+                    const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
+                    const pathList = getBatchPath(fillColor);
+
+                    for (let i = 0; i < 4; i++) {
+                        const startX = baseX + i * quarterSize;
+                        const endX = startX + quarterSize;
+                        pathList.push({
+                            x0: startX, y0: edgeY,
+                            cp1x: startX, cp1y: edgeY - quarterSize + getFastJitter(x, y, i, 7),
+                            cp2x: endX, cp2y: edgeY - quarterSize + getFastJitter(x, y, i, 8),
+                            x1: endX, y1: edgeY
+                        });
+                    }
+                }
             }
         }
     }
 
-    ctx.stroke();
-    ctx.restore();
+    // Kirajzolás
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "black";
+
+    colorBatches.forEach((shapes, color) => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        for (let i = 0; i < shapes.length; i++) {
+            const s = shapes[i];
+            ctx.moveTo(s.x0, s.y0);
+            ctx.bezierCurveTo(s.cp1x, s.cp1y, s.cp2x, s.cp2y, s.x1, s.y1);
+            ctx.lineTo(s.x0, s.y0);
+        }
+        ctx.fill();
+        ctx.stroke();
+    });
 }
