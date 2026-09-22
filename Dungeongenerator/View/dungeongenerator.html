@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="docTitle">Map generator</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
-  <script type="module" crossorigin src="../../assets/generator-CG6ws738.js"></script>
+  <script type="module" crossorigin src="../../assets/generator-4DMszlh3.js"></script>
   <link rel="stylesheet" crossorigin href="../../assets/generator-BgmYyRxk.css">
 </head>
 
@@ -32,6 +32,15 @@
                 <input type="number" id="brush_size" value="0" min="0">
             </div>
 
+            <!-- Új: Falstílus választó -->
+            <div class="control-row" style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
+                <label for="wall-style-select" style="font-size: 14px; font-weight: bold;" data-i18n="wallStyleLabel">Falstílus:</label>
+                <select id="wall-style-select" style="padding: 4px; border-radius: 4px;">
+                    <option value="rocky">Barlangos (Rocky)</option>
+                    <option value="smooth">Lekerekített (Smooth)</option>
+                </select>
+            </div>
+            
             <!-- Dinamikus Csempetípus Vezérlők -->
             <div id="tile-controls-container"></div>
             
