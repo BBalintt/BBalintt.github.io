@@ -698,7 +698,7 @@ function drawTileAtMouse(e: MouseEvent) {
     const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
     const centerCol = Math.floor(mouseX / 32);
     const centerRow = Math.floor(mouseY / 32);
-    const brushRadius = parseInt((document.getElementById("brush_size") as HTMLInputElement)?.value || "0", 10);
+    const brushRadius = parseInt((document.getElementById("brush_size") as HTMLInputElement)?.value || "0", 10)-1;
 
     let changed = false;
     for (let r = centerRow - brushRadius; r <= centerRow + brushRadius; r++) {
