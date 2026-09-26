@@ -1,13 +1,12 @@
 import { tile } from "../View/tile.js";
 import { translations, currentLang } from "./lang.js";
 
-const t = translations[currentLang];
-
 // OPTIMALIZÁCIÓ: Az isolatedFrom tömbökben számokat (int) használunk stringek helyett
+// A nevek helyett a fordítási kulcsokat adjuk meg, hogy a nyelvváltás és a megjelenítés is helyes maradjon!
 export let tiletypes = [
-    new tile(0, t.tileNothing, "#000000", true, [1, 2], false),
-    new tile(1, t.tileCorridor, "#DAA06D", true, [0], true),
-    new tile(2, t.tileRoom, "#E1C16E", true, [0], true)
+    new tile(0, "tileNothing", "#000000", true, [1, 2], false),
+    new tile(1, "tileCorridor", "#DAA06D", true, [0], true),
+    new tile(2, "tileRoom", "#E1C16E", true, [0], true)
 ];
 
 export let activeTileId = 1;

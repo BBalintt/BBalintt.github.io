@@ -45,11 +45,16 @@ h1 {
     color: #ffffff;
 }
 
+.lang-selector {
+    display: flex;
+    gap: 6px;
+}
+
 .lang-selector button {
     background: var(--input-bg);
     border: 1px solid var(--border-color);
     color: var(--text-color);
-    padding: 6px 14px;
+    padding: 6px 12px;
     border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
@@ -83,28 +88,78 @@ canvas {
     margin-bottom: 24px;
 }
 
+/* Lenyíló panel (generáló beállítások) */
+.settings-toggle-btn {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
+
+.settings-toggle-btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.collapsible-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+}
+
+.collapsible-content.collapsed {
+    display: none;
+}
+
+.control-group {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    padding: 14px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
 .control-row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
     flex-wrap: wrap;
+    gap: 10px;
 }
 
-p {
+.control-row label, .control-row p {
     margin: 0;
     font-weight: 600;
     font-size: 0.95rem;
     color: #cbd5e1;
 }
 
-input[type="number"] {
+input[type="number"],
+select {
     background: var(--input-bg);
     border: 1px solid var(--border-color);
     color: #fff;
     padding: 8px 12px;
     border-radius: 6px;
     outline: none;
+}
+
+input[type="number"] {
     width: 80px;
+}
+
+select {
+    cursor: pointer;
 }
 
 input[type="color"] {
@@ -127,13 +182,76 @@ input[type="color"]::-webkit-color-swatch {
     border-radius: 4px;
 }
 
-.checkbox-matrix {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    background: rgba(0, 0, 0, 0.2);
+.btn-primary {
+    background-color: var(--accent-color);
+    color: white;
     padding: 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 700;
+    width: 100%;
+    transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+}
+
+.tool-mode-selector {
+    display: flex;
+    gap: 8px;
+}
+
+.tool-mode-selector button {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-draw-active {
+    background-color: #10b981;
+    border-color: #10b981;
+    color: white;
+}
+
+.btn-door-active {
+    background-color: #f59e0b;
+    border-color: #f59e0b;
+    color: #000;
+}
+
+.btn-inactive {
+    background-color: var(--input-bg);
+    color: var(--text-color);
+}
+
+.file-input-wrapper {
+    margin-top: 4px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+}
+
+.file-input-wrapper label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 8px;
+    color: #cbd5e1;
+}
+
+input[type="file"] {
+    color: var(--text-color);
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    padding: 8px;
     border-radius: 6px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 #exportBtn {
@@ -147,6 +265,7 @@ input[type="color"]::-webkit-color-swatch {
     border-radius: 8px;
     cursor: pointer;
     transition: background-color 0.2s ease, transform 0.1s ease;
+    margin-top: 16px;
 }
 
 #exportBtn:hover {
@@ -155,4 +274,51 @@ input[type="color"]::-webkit-color-swatch {
 
 #exportBtn:active {
     transform: scale(0.99);
+}
+
+#addTileBtn {
+    background: var(--input-bg);
+    border: 1px dashed var(--border-color);
+    color: var(--text-color);
+    padding: 10px;
+    width: 100%;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+}
+
+#addTileBtn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Csempe vezérlő elem stílusa a generátorhoz */
+.tile-control-item {
+    border: 1px solid var(--border-color);
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.tile-name-input {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+.btn-delete-tile {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+}
+
+.btn-delete-tile:hover {
+    background: #dc2626;
 }

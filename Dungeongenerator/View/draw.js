@@ -1,6 +1,6 @@
 import { tiletypes } from "../Controller/tileRegistry.js";
 import { drawStoneTexture, drawWoodTexture, drawCobblestoneTexture } from "./textures.js";
-import { getLoadedLineOfSight, getCustomPortals } from "../Controller/generator.js";
+import { getLoadedLineOfSight, getLoadedPortals } from "../Controller/generator.js";
 
 let isDrawingScheduled = false;
 export let backgroundImage = null;
@@ -9,7 +9,7 @@ export let currentWallStyle = "rocky";
 export function setWallStyle(style) {
     if (style === "rocky" || style === "smooth") {
         currentWallStyle = style;
-        scheduleDraw();
+        scheduleDraw(lastMatrix);
     }
 }
 
@@ -19,6 +19,7 @@ export function getBackgroundImage() {
 
 export function setBackgroundImage(img) {
     backgroundImage = img;
+    scheduleDraw(lastMatrix);
 }
 
 const roughness = 6;
@@ -33,7 +34,13 @@ function getFastJitter(x, y, i, side) {
     return JITTER_TABLE[index];
 }
 
-export function scheduleDraw(matrix, bgImg = null) {
+let lastMatrix = null;
+
+/**
+ * @param {number[][] | null} [matrix=null]
+ * @param {HTMLImageElement | null} [bgImg=null]
+ */
+export function scheduleDraw(matrix = null, bgImg = null) {
     if (bgImg !== null) {
         backgroundImage = bgImg;
     }
@@ -46,9 +53,11 @@ export function scheduleDraw(matrix, bgImg = null) {
     }
 }
 
-let lastMatrix = null;
-
-export function drawDungeon(matrix, skipTiles = false) {
+/**
+ * @param {number[][] | null} [matrix=null]
+ * @param {boolean} [skipTiles=false]
+ */
+export function drawDungeon(matrix = null, skipTiles = false) {
     if (matrix) {
         lastMatrix = matrix;
     } else {
@@ -107,10 +116,7 @@ export function drawDungeon(matrix, skipTiles = false) {
         }
     }
 
-    // --- EGYSÉGES PORTÁL RENDERELÉS ---
-    // A customPortals mostantól tartalmazza a kezdeti automatikus ajtókat is, 
-    // így minden módosítás (hozzáadás/törlés) ebben a listában érvényesül.
-    const customPortals = getCustomPortals();
+    const customPortals = getLoadedPortals();
     if (customPortals && customPortals.length > 0) {
         drawEditorPortals(ctx, customPortals, tileSize);
     }
@@ -161,7 +167,6 @@ function renderTileWithTexture(ctx, x, y, tileSize, tileObj) {
 }
 
 function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
-    // [Változatlan falrajzoló kód...]
     const quarterSize = tileSize / 4;
     const defaultTileColor = tiletypes[0] ? tiletypes[0].color : "#000000";
     const colorBatches = new Map();
@@ -180,9 +185,10 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
 
             const baseX = x * tileSize, baseY = y * tileSize;
 
-            if (x + 1 < cols && matrix[y][x + 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x + 1])) {
+            const rightTileId = x + 1 < cols ? matrix[y][x + 1] : 0;
+            if (rightTileId !== tileId && tiletype.isIsolatedFrom(rightTileId)) {
                 const edgeX = baseX + tileSize;
-                const neighborTile = tileLookup.get(matrix[y][x + 1]);
+                const neighborTile = tileLookup.get(rightTileId);
                 const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
                 const pathList = getBatchPath(fillColor);
                 for (let i = 0; i < 4; i++) {
@@ -190,9 +196,11 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                     pathList.push({ x0: edgeX, y0: startY, cp1x: edgeX - quarterSize + getFastJitter(x, y, i, 1), cp1y: startY, cp2x: edgeX - quarterSize + getFastJitter(x, y, i, 2), cp2y: endY, x1: edgeX, y1: endY });
                 }
             }
-            if (x - 1 >= 0 && matrix[y][x - 1] !== tileId && tiletype.isIsolatedFrom(matrix[y][x - 1])) {
+
+            const leftTileId = x - 1 >= 0 ? matrix[y][x - 1] : 0;
+            if (leftTileId !== tileId && tiletype.isIsolatedFrom(leftTileId)) {
                 const edgeX = baseX;
-                const neighborTile = tileLookup.get(matrix[y][x - 1]);
+                const neighborTile = tileLookup.get(leftTileId);
                 const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
                 const pathList = getBatchPath(fillColor);
                 for (let i = 0; i < 4; i++) {
@@ -200,9 +208,11 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                     pathList.push({ x0: edgeX, y0: startY, cp1x: edgeX + quarterSize - getFastJitter(x, y, i, 3), cp1y: startY, cp2x: edgeX + quarterSize - getFastJitter(x, y, i, 4), cp2y: endY, x1: edgeX, y1: endY });
                 }
             }
-            if (y - 1 >= 0 && matrix[y - 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y - 1][x])) {
+
+            const topTileId = y - 1 >= 0 ? matrix[y - 1][x] : 0;
+            if (topTileId !== tileId && tiletype.isIsolatedFrom(topTileId)) {
                 const edgeY = baseY;
-                const neighborTile = tileLookup.get(matrix[y - 1][x]);
+                const neighborTile = tileLookup.get(topTileId);
                 const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
                 const pathList = getBatchPath(fillColor);
                 for (let i = 0; i < 4; i++) {
@@ -210,9 +220,11 @@ function drawBatchedRockyWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
                     pathList.push({ x0: startX, y0: edgeY, cp1x: startX, cp1y: edgeY + quarterSize - getFastJitter(x, y, i, 5), cp2x: endX, cp2y: edgeY + quarterSize - getFastJitter(x, y, i, 6), x1: endX, y1: edgeY });
                 }
             }
-            if (y + 1 < rows && matrix[y + 1][x] !== tileId && tiletype.isIsolatedFrom(matrix[y + 1][x])) {
+
+            const bottomTileId = y + 1 < rows ? matrix[y + 1][x] : 0;
+            if (bottomTileId !== tileId && tiletype.isIsolatedFrom(bottomTileId)) {
                 const edgeY = baseY + tileSize;
-                const neighborTile = tileLookup.get(matrix[y + 1][x]);
+                const neighborTile = tileLookup.get(bottomTileId);
                 const fillColor = (tiletype === tiletypes[0]) ? (neighborTile ? neighborTile.color : defaultTileColor) : tiletype.color;
                 const pathList = getBatchPath(fillColor);
                 for (let i = 0; i < 4; i++) {

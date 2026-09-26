@@ -26,35 +26,62 @@
         <canvas id="dungeon"></canvas>
 
         <div class="controls-wrapper">
-            <!-- ÚJ: Módválasztó gombok (Csempézés vs Ajtó szerkesztés) -->
-            <div id="tool-mode-selector" style="margin-bottom: 12px; display: flex; gap: 8px;">
-                <button id="btn-mode-draw" style="flex: 1; background: #4CAF50; color: white; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🖌️ Csempézés</button>
-                <button id="btn-mode-door" style="flex: 1; background: #ddd; color: black; padding: 8px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">🚪 Ajtó szerkesztés</button>
+            <!-- Eltüntethető generáló beállítások -->
+            <button type="button" id="toggle-settings-btn" class="settings-toggle-btn">
+                <span data-i18n="settingsToggle">⚙️ Generáló Beállítások</span>
+                <span>▼</span>
+            </button>
+            
+            <div id="settings-container" class="collapsible-content">
+                <div class="control-group">
+                    <div class="control-row">
+                        <label for="dungeon-width" data-i18n="widthLabel">Térkép szélessége:</label>
+                        <input type="number" id="dungeon-width" value="50" min="20" max="200">
+                    </div>
+                    <div class="control-row">
+                        <label for="dungeon-height" data-i18n="heightLabel">Térkép magassága:</label>
+                        <input type="number" id="dungeon-height" value="50" min="20" max="200">
+                    </div>
+                    <div class="control-row">
+                        <label for="room-count" data-i18n="roomCountLabel">Szobák száma:</label>
+                        <input type="number" id="room-count" value="30" min="0" max="100">
+                    </div>
+                </div>
+                <button id="generateBtn" class="btn-primary" data-i18n="generateBtn">🎲 Dungeon Generálása</button>
+                <button id="resizeBtn" class="btn-secondary" data-i18n="resizeBtn">📐 Csak átméretezés</button>            </div>
+
+            <!-- Módválasztó gombok -->
+            <div class="tool-mode-selector" style="margin-top: 5px;">
+                <button id="btn-mode-draw" class="btn-draw-active" data-i18n="modeDraw">🖌️ Csempézés</button>
+                <button id="btn-mode-door" class="btn-inactive" data-i18n="modeDoor">🚪 Ajtó szerkesztés</button>
             </div>
 
-            <div class="control-row">
-                <p data-i18n="brushSize">Ecset méret:</p>
-                <input type="number" id="brush_size" value="0" min="0">
-            </div>
-
-            <!-- Falstílus választó -->
-            <div class="control-row" style="margin-top: 10px; display: flex; align-items: center; justify-content: space-between;">
-                <label for="wall-style-select" style="font-size: 14px; font-weight: bold;" data-i18n="wallStyleLabel">Falstílus:</label>
-                <select id="wall-style-select" style="padding: 4px; border-radius: 4px;">
-                    <option value="rocky">Barlangos (Rocky)</option>
-                    <option value="smooth">Lekerekített (Smooth)</option>
-                </select>
+            <!-- Rajzolási opciók -->
+            <div class="control-group" id="brush-size-group">
+                <div class="control-row">
+                    <p data-i18n="brushSize">Ecset méret:</p>
+                    <input type="number" id="brush_size" value="0" min="0">
+                </div>
+                <div class="control-row">
+                    <label for="wall-style-select" data-i18n="wallStyleLabel">Falstílus:</label>
+                    <select id="wall-style-select" style="width: 130px; padding: 4px;">
+                        <option value="rocky" data-i18n="wallStyleRocky">Barlangos</option>
+                        <option value="smooth" data-i18n="wallStyleSmooth">Lekerekített</option>
+                    </select>
+                </div>
             </div>
             
-            <!-- Dinamikus Csempetípus Vezérlők -->
+            <!-- Dinamikus Csempetípus Vezérlők (alapból megnyitva/renderelve) -->
             <div id="tile-controls-container"></div>
             
-            <button id="addTileBtn" data-i18n="addTileBtn" style="margin-top: 10px;">+ Új csempe típus hozzáadása</button>
+            <button id="addTileBtn" data-i18n="addTileBtn">+ Új csempe típus hozzáadása</button>
         </div>
-        <div style="margin-bottom: 10px;">
-            <label for="map-file-input" style="font-size: 14px; font-weight: bold; display: block; margin-bottom: 4px;" data-i18n="mapFileLabel">Térkép vagy háttér betöltése</label>
-            <input type="file" id="map-file-input" accept="image/*,.dd2vtt">
+        
+        <div class="file-input-wrapper">
+            <label for="map-file-input" data-i18n="mapFileLabel">Térkép vagy háttér betöltése</label>
+            <input type="file" id="map-file-input" accept="image/*,.dd2vtt" style="width: 100%;">
         </div>
+        
         <button id="exportBtn" data-i18n="exportBtn">Exportálás DD2VTT-be</button>
     </div>
 
