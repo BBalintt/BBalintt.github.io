@@ -31,35 +31,38 @@ export function getLoadedPortals() {
 export function loadMapFromFile(data: any): number[][] | null {
     if (!data) return null;
 
-    // Universal VTT formátum (.dd2vtt) feldolgozása
     if (data.resolution && data.map) {
         const lineOfSightData = data.line_of_sight;
         const portalsData = data.portals;
 
-        // Árnyékok mentése
         if (lineOfSightData && Array.isArray(lineOfSightData)) {
             loadedLineOfSight = lineOfSightData;
         } else {
             loadedLineOfSight = null;
         }
 
-        // Portálok mentése
+        // Portálok konvertálása rácskoordinátáról pixelre, hogy egységes maradjon a szerkesztővel
         if (portalsData && Array.isArray(portalsData)) {
             loadedPortals = portalsData;
+            // Átkonvertáljuk pixelbe a belső szerkesztéshez és a helyes megjelenítéshez
+            customPortals = portalsData.map((p: any) => ({
+                position: { x: p.position.x * 32, y: p.position.y * 32 },
+                bounds: p.bounds.map((b: any) => ({ x: b.x * 32, y: b.y * 32 }))
+            }));
         } else {
             loadedPortals = null;
+            customPortals = [];
         }
 
-        // Visszaadjuk magát a csempe-mátrixot
         if (Array.isArray(data.map)) {
             return data.map;
         }
     }
 
-    // Egyszerű mátrix JSON formátum
     if (Array.isArray(data)) {
         loadedLineOfSight = null;
         loadedPortals = null;
+        customPortals = [];
         return data;
     }
 
@@ -258,12 +261,13 @@ export function togglePortalAt(segment: { p1: { x: number; y: number }, p2: { x:
         p.bounds && p.bounds.length >= 2 &&
         Math.abs(p.bounds[0].x - segment.p1.x * tileSize) < 8 &&
         Math.abs(p.bounds[0].y - segment.p1.y * tileSize) < 8 &&
-        Math.abs(p.bounds[1].x - segment.p1.x * tileSize) < 8 &&
-        Math.abs(p.bounds[1].y - segment.p1.y * tileSize) < 8
+        Math.abs(p.bounds[1].x - segment.p2.x * tileSize) < 8 && // Javítva: p1 helyett p2
+        Math.abs(p.bounds[1].y - segment.p2.y * tileSize) < 8    // Javítva: p1 helyett p2
     );
 
-    if (index >= 0) customPortals.splice(index, 1);
-    else {
+    if (index >= 0) {
+        customPortals.splice(index, 1);
+    } else {
         customPortals.push({
             position: { x: ((segment.p1.x + segment.p2.x) / 2) * tileSize, y: ((segment.p1.y + segment.p2.y) / 2) * tileSize },
             bounds: [
@@ -687,7 +691,7 @@ document.getElementById("addTileBtn")?.addEventListener("click", () => {
 });
 
 document.getElementById("exportBtn")?.addEventListener("click", () => {
-    exportToDd2vtt(matrix, canvas, 12);
+    exportToDd2vtt(matrix, canvas, 32);
 });
 
 let isDrawing = false;

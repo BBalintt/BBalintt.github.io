@@ -1,10 +1,10 @@
 import { tiletypes } from "../Controller/tileRegistry.js";
 import { drawStoneTexture, drawWoodTexture, drawCobblestoneTexture } from "./textures.js";
-import { getLoadedLineOfSight, getLoadedPortals } from "../Controller/generator.js";
+import { getLoadedLineOfSight, getLoadedPortals, getCustomPortals } from "../Controller/generator.js";
 
 let isDrawingScheduled = false;
 export let backgroundImage = null;
-export let currentWallStyle = "rocky"; 
+export let currentWallStyle = "rocky";  
 
 export function setWallStyle(style) {
     if (style === "rocky" || style === "smooth") {
@@ -56,8 +56,9 @@ export function scheduleDraw(matrix = null, bgImg = null) {
 /**
  * @param {number[][] | null} [matrix=null]
  * @param {boolean} [skipTiles=false]
+ * @param {boolean} [skipEditorPortals=false]
  */
-export function drawDungeon(matrix = null, skipTiles = false) {
+export function drawDungeon(matrix = null, skipTiles = false, skipEditorPortals = false) {
     if (matrix) {
         lastMatrix = matrix;
     } else {
@@ -116,9 +117,12 @@ export function drawDungeon(matrix = null, skipTiles = false) {
         }
     }
 
-    const customPortals = getLoadedPortals();
-    if (customPortals && customPortals.length > 0) {
-        drawEditorPortals(ctx, customPortals, tileSize);
+    // CSAK AKKOR RAJZOLJUKA KI, HA A SKIP FLAG NEM TRUE
+    if (!skipEditorPortals) {
+        const customPortals = getCustomPortals();
+        if (customPortals && customPortals.length > 0) {
+            drawEditorPortals(ctx, tileSize);
+        }
     }
 }
 
@@ -316,44 +320,36 @@ function drawSmoothWalls(ctx, matrix, tileSize, rows, cols, tileLookup) {
     ctx.restore();
 }
 
-function drawEditorPortals(ctx, portals, tileSize) {
+export function drawEditorPortals(ctx, tileSize = 32) {
+    const customPortals = getCustomPortals();
+    if (!customPortals || customPortals.length === 0) return;
+
     ctx.save();
-    portals.forEach(portal => {
-        const b = portal.bounds;
-        if (!b || b.length < 2) return;
+    
+    customPortals.forEach(portal => {
+        if (!portal.bounds || portal.bounds.length < 2) return;
 
-        const p1 = b[0];
-        const p2 = b[1];
-        const isHorizontal = p1.y === p2.y;
+        const p1 = portal.bounds[0];
+        const p2 = portal.bounds[1];
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
         
-        let px, py, pWidth, pHeight;
-        const doorThickness = 10;
+        ctx.strokeStyle = "#e67e22"; 
+        ctx.lineWidth = 6;
+        ctx.lineCap = "round";
+        ctx.stroke();
+        ctx.closePath();
 
-        if (isHorizontal) {
-            px = Math.min(p1.x, p2.x);
-            py = p1.y - (doorThickness / 2);
-            pWidth = Math.abs(p2.x - p1.x);
-            pHeight = doorThickness;
-        } else {
-            px = p1.x - (doorThickness / 2);
-            py = Math.min(p1.y, p2.y);
-            pWidth = doorThickness;
-            pHeight = Math.abs(p2.y - p1.y);
+        if (portal.position) {
+            ctx.beginPath();
+            ctx.arc(portal.position.x, portal.position.y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = "#d35400";
+            ctx.fill();
+            ctx.closePath();
         }
-
-        ctx.fillStyle = "rgba(180, 100, 40, 0.6)";
-        ctx.fillRect(px, py, pWidth, pHeight);
-
-        ctx.strokeStyle = "#ffcc00";
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(px, py, pWidth, pHeight);
-
-        ctx.fillStyle = "#ffffff";
-        const fontSize = Math.max(12, Math.min(pWidth, pHeight) * 0.8);
-        ctx.font = `${fontSize}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("🚪", px + pWidth / 2, py + pHeight / 2);
     });
+
     ctx.restore();
 }

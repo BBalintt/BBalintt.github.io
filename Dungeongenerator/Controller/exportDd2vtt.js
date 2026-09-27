@@ -4,19 +4,17 @@ import { drawDungeon, getBackgroundImage } from "../View/draw.js";
 import { getCustomPortals } from "./generator.js";
 
 export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
-    // Biztonságosan lekérdezzük, hogy van-e aktív háttérkép[cite: 11]
     const skipTilesIfNeeded = (getBackgroundImage() !== null);
 
-    // 1. LÉPÉS: Exportálás előtti újrarajzolás[cite: 11]
-    drawDungeon(matrix, skipTilesIfNeeded);
+    // 1. LÉPÉS: Exportálás előtti újrarajzolás (tisztán, ajtójelölések nélkül)
+    drawDungeon(matrix, skipTilesIfNeeded, true);
 
-    const size = matrix.length;
+    const rows = matrix.length;
+    const cols = matrix[0].length;
     let portals = [];
 
-    // Helper: Verify grid coordinates are within bounds[cite: 11]
-    const isValid = (r, c) => r >= 0 && r < size && c >= 0 && c < size;
+    const isValid = (r, c) => r >= 0 && r < rows && c >= 0 && c < cols;
 
-    // Helper: Retrieve tile object safely[cite: 11]
     const getTile = (r, c) => {
         if (!isValid(r, c)) return null;
         const tileId = matrix[r][c];
@@ -24,15 +22,57 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
     };
 
     const rawDoorSegments = [];
-    const rawLosSegments = []; // Itt gyűjtjük az összes sima falat/LOS szakaszt is[cite: 11]
+    const rawLosSegments = []; 
 
+    const customPortals = getCustomPortals();
+    const hasCustomPortals = customPortals && customPortals.length > 0;
+
+    // Robusztus átfedés-vizsgálat: ellenőrzi, hogy egy él átfedésben van-e kézi portállal
+    const isOverlappingPortal = (p1, p2) => {
+        if (!hasCustomPortals) return false;
+        return customPortals.some(cp => {
+            const b0 = { x: cp.bounds[0].x / tileSize, y: cp.bounds[0].y / tileSize };
+            const b1 = { x: cp.bounds[1].x / tileSize, y: cp.bounds[1].y / tileSize };
+
+            const sIsHoriz = Math.abs(p1.y - p2.y) < 0.001;
+            const cpIsHoriz = Math.abs(b0.y - b1.y) < 0.001;
+
+            if (sIsHoriz && cpIsHoriz) {
+                if (Math.abs(p1.y - b0.y) > 0.01) return false;
+                const sMinX = Math.min(p1.x, p2.x);
+                const sMaxX = Math.max(p1.x, p2.x);
+                const cpMinX = Math.min(b0.x, b1.x);
+                const cpMaxX = Math.max(b0.x, b1.x);
+                return sMinX < cpMaxX && sMaxX > cpMinX;
+            }
+
+            const sIsVert = Math.abs(p1.x - p2.x) < 0.001;
+            const cpIsVert = Math.abs(b0.x - b1.x) < 0.001;
+
+            if (sIsVert && cpIsVert) {
+                if (Math.abs(p1.x - b0.x) > 0.01) return false;
+                const sMinY = Math.min(p1.y, p2.y);
+                const sMaxY = Math.max(p1.y, p2.y);
+                const cpMinY = Math.min(b0.y, b1.y);
+                const cpMaxY = Math.max(b0.y, b1.y);
+                return sMinY < cpMaxY && sMaxY > cpMinY;
+            }
+
+            return false;
+        });
+    };
+
+    // Alapvető fal hozzáadó: Ha van kézi portál ezen a helyen, kihagyjuk (nincs fal)
     const addLosSegment = (p1, p2) => {
+        if (hasCustomPortals && isOverlappingPortal(p1, p2)) {
+            return;
+        }
         rawLosSegments.push({ p1: { ...p1 }, p2: { ...p2 } });
     };
 
-    // Iterate through all cells to check right (East) and bottom (South) edges[cite: 11]
-    for (let r = 0; r < size; r++) {
-        for (let c = 0; c < size; c++) {
+    // Iterálás az összes cellán és élen
+    for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
             const tileA = getTile(r, c);
             const isFloorA = tileA ? tileA.isFloor : false;
 
@@ -80,53 +120,103 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
         const isDifferentFloorType = idA !== idB;
 
         if (isDifferentFloorType || isIsolated) {
-            rawDoorSegments.push({ p1, p2, key, r1, c1, r2, c2 });
-        }
-    }
-
-    const visited = new Set();
-    const groups = [];
-
-    const areConnected = (s1, s2) => {
-        return (s1.p1.x === s2.p1.x && s1.p1.y === s2.p1.y) ||
-               (s1.p1.x === s2.p2.x && s1.p1.y === s2.p2.y) ||
-               (s1.p2.x === s2.p1.x && s1.p2.y === s2.p1.y) ||
-               (s1.p2.x === s2.p2.x && s1.p2.y === s2.p2.y);
-    };
-
-    for (let i = 0; i < rawDoorSegments.length; i++) {
-        if (visited.has(i)) continue;
-
-        const group = [];
-        const queue = [rawDoorSegments[i]];
-        visited.add(i);
-
-        while (queue.length > 0) {
-            const current = queue.shift();
-            group.push(current);
-
-            for (let j = 0; j < rawDoorSegments.length; j++) {
-                if (!visited.has(j) && areConnected(current, rawDoorSegments[j])) {
-                    visited.add(j);
-                    queue.push(rawDoorSegments[j]);
-                }
+            if (!hasCustomPortals) {
+                rawDoorSegments.push({ p1, p2, key, r1, c1, r2, c2 });
+            } else {
+                addLosSegment(p1, p2);
             }
         }
-        groups.push(group);
     }
 
-    const pushPortal = (p1, p2) => {
-        portals.push({
-            position: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
-            bounds: [p1, p2],
+    // Portálok összeállítása
+    if (hasCustomPortals) {
+        portals = customPortals.map(p => ({
+            position: { x: p.position.x / tileSize, y: p.position.y / tileSize },
+            bounds: p.bounds.map(b => ({ x: b.x / tileSize, y: b.y / tileSize })),
             rotation: 0,
             closed: true,
             freestanding: false,
             portal_type: 0
-        });
-    };
+        }));
+    } else {
+        const visited = new Set();
+        const groups = [];
 
-    // Segédfüggvény az azonos vonal mentén fekvő (collinear) szakaszok összevonására[cite: 11]
+        const areConnected = (s1, s2) => {
+            return (s1.p1.x === s2.p1.x && s1.p1.y === s2.p1.y) ||
+                   (s1.p1.x === s2.p2.x && s1.p1.y === s2.p2.y) ||
+                   (s1.p2.x === s2.p1.x && s1.p2.y === s2.p1.y) ||
+                   (s1.p2.x === s2.p2.x && s1.p2.y === s2.p2.y);
+        };
+
+        for (let i = 0; i < rawDoorSegments.length; i++) {
+            if (visited.has(i)) continue;
+
+            const group = [];
+            const queue = [rawDoorSegments[i]];
+            visited.add(i);
+
+            while (queue.length > 0) {
+                const current = queue.shift();
+                group.push(current);
+
+                for (let j = 0; j < rawDoorSegments.length; j++) {
+                    if (!visited.has(j) && areConnected(current, rawDoorSegments[j])) {
+                        visited.add(j);
+                        queue.push(rawDoorSegments[j]);
+                    }
+                }
+            }
+            groups.push(group);
+        }
+
+        const pushPortal = (p1, p2) => {
+            portals.push({
+                position: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
+                bounds: [p1, p2],
+                rotation: 0,
+                closed: true,
+                freestanding: false,
+                portal_type: 0
+            });
+        };
+
+        groups.forEach(group => {
+            if (group.length === 0) return;
+
+            let avgX = 0, avgY = 0;
+            group.forEach(s => {
+                avgX += (s.p1.x + s.p2.x) / 2;
+                avgY += (s.p1.y + s.p2.y) / 2;
+            });
+            avgX /= group.length;
+            avgY /= group.length;
+
+            let bestSegment = group[0];
+            let minDistanceSq = Infinity;
+
+            group.forEach(s => {
+                const midX = (s.p1.x + s.p2.x) / 2;
+                const midY = (s.p1.y + s.p2.y) / 2;
+                const distSq = Math.pow(midX - avgX, 2) + Math.pow(midY - avgY, 2);
+
+                if (distSq < minDistanceSq) {
+                    minDistanceSq = distSq;
+                    bestSegment = s;
+                }
+            });
+
+            group.forEach(s => {
+                if (s === bestSegment) {
+                    pushPortal(s.p1, s.p2);
+                }
+            });
+
+            const nonPortalSegments = group.filter(s => s !== bestSegment);
+            nonPortalSegments.forEach(s => addLosSegment(s.p1, s.p2));
+        });
+    }
+
     function simplifySegments(segments) {
         if (segments.length <= 1) return segments;
 
@@ -177,76 +267,20 @@ export function exportToDd2vtt(matrix, canvas, tileSize = 32) {
         return lines;
     }
 
-    // Kézi portálok lekérdezése[cite: 12]
-    const customPortals = getCustomPortals();
-
-    if (customPortals && customPortals.length > 0) {
-        // Ha a felhasználó szerkesztette kézzel, ezeket mentjük[cite: 12]
-        portals = customPortals.map(p => ({
-            position: { x: p.position.x / tileSize, y: p.position.y / tileSize },
-            bounds: p.bounds.map(b => ({ x: b.x / tileSize, y: b.y / tileSize })),
-            rotation: 0,
-            closed: true,
-            freestanding: false,
-            portal_type: 0
-        }));
-
-        // Minden nyers ajtó/fal szegmens a Los-ba kerül falazatként
-        rawDoorSegments.forEach(s => addLosSegment(s.p1, s.p2));
-    } else {
-        // Automatikus portálszámítás logikája[cite: 11]
-        groups.forEach(group => {
-            if (group.length === 0) return;
-
-            let avgX = 0, avgY = 0;
-            group.forEach(s => {
-                avgX += (s.p1.x + s.p2.x) / 2;
-                avgY += (s.p1.y + s.p2.y) / 2;
-            });
-            avgX /= group.length;
-            avgY /= group.length;
-
-            let bestSegment = group[0];
-            let minDistanceSq = Infinity;
-
-            group.forEach(s => {
-                const midX = (s.p1.x + s.p2.x) / 2;
-                const midY = (s.p1.y + s.p2.y) / 2;
-                const distSq = Math.pow(midX - avgX, 2) + Math.pow(midY - avgY, 2);
-
-                if (distSq < minDistanceSq) {
-                    minDistanceSq = distSq;
-                    bestSegment = s;
-                }
-            });
-
-            group.forEach(s => {
-                if (s === bestSegment) {
-                    pushPortal(s.p1, s.p2);
-                }
-            });
-
-            const nonPortalSegments = group.filter(s => s !== bestSegment);
-            nonPortalSegments.forEach(s => addLosSegment(s.p1, s.p2));
-        });
-    }
-
-    // Az ÖSSZES falat együttesen összevonjuk[cite: 11]
     const simplifiedAllWalls = simplifySegments(rawLosSegments);
     const los = simplifiedAllWalls.map(line => [line.p1, line.p2]);
 
-    // Létrehozzuk a Base64 képet a csempe-nélküli változatról[cite: 11]
     const dataUrl = canvas.toDataURL("image/png");
     const base64Image = dataUrl.replace(/^data:image\/(png|jpg);base64,/, "");
 
-    // 2. LÉPÉS: Visszaállítjuk a normális nézetet[cite: 11]
-    drawDungeon(matrix, false);
+    // 2. LÉPÉS: Visszaállítjuk a normális nézetet
+    drawDungeon(matrix, false, false);
 
     const dd2vttData = {
         format: 0.2,
         resolution: {
             map_origin: { x: 0, y: 0 },
-            map_size: { x: size, y: size },
+            map_size: { x: cols, y: rows },
             pixels_per_grid: tileSize
         },
         line_of_sight: los,
