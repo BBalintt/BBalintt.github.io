@@ -1,23 +1,28 @@
 :root {
-    --bg-color: #080d11;
-    --card-bg: rgba(15, 23, 30, 0.75);
-    --card-border: rgba(16, 185, 129, 0.2);
-    --accent-color: #10b981;
-    /* Smaragdzöld */
-    --accent-secondary: #06b6d4;
-    /* Ciánkék */
-    --accent-glow: rgba(16, 185, 129, 0.25);
-    --text-main: #f1f5f9;
-    --text-muted: #94a3b8;
-    --border-color: #1e293b;
+    --bg-color: #3b302a;
+    /* Mélyebb, füstösebb barna-szürke háttér (nem ordít a sárga) */
+    --card-bg: #e6dfd5;
+    /* Világos, tiszta antik papír szín a kártyáknak */
+    --card-border: #6d461a;
+    /* Antique Brass keret */
+    --accent-color: #c5583f;
+    /* Summer Fig - csak finom kiemelésnek */
+    --accent-secondary: #402d10;
+    /* Brown Tumbleweed */
+    --accent-glow: rgba(197, 88, 63, 0.15);
+    --text-main: #110802;
+    /* Blackout - tökéletesen olvasható a világos papíron */
+    --text-muted: #594432;
+    /* Finomított sötétebb szöveg */
+    --border-color: #b5a48b;
 }
 
 body {
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     background-color: var(--bg-color);
     background-image:
-        radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.1) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.08) 0px, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(20, 15, 12, 0.4) 0px, transparent 60%),
+        radial-gradient(at 100% 100%, rgba(10, 7, 5, 0.5) 0px, transparent 60%);
     background-attachment: fixed;
     color: var(--text-main);
     margin: 0;
@@ -41,16 +46,16 @@ header h1 {
     font-size: 3rem;
     font-weight: 800;
     margin: 0;
-    background: linear-gradient(135deg, #ffffff 0%, #a7f3d0 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #f4efe6;
+    /* Világos cím a sötét háttéren, hogy üssön */
     letter-spacing: -0.02em;
 }
 
 .subtitle {
-    color: var(--accent-secondary);
+    color: #c3a78b;
+    /* Finomabb Beige Intenso a alcímnek */
     font-size: 1.1rem;
-    font-weight: 600;
+    font-weight: 700;
     margin-top: 8px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -64,27 +69,26 @@ header h1 {
     gap: 24px;
 }
 
-/* Üveghatású Kártyák */
+/* Világos, papírszerű kártyák a sötét háttéren – ez adja az igazi kontrasztot */
 .card {
     background: var(--card-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     padding: 32px;
-    border-radius: 16px;
     border: 1px solid var(--card-border);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .card:hover {
-    border-color: rgba(16, 185, 129, 0.4);
+    border-color: var(--accent-color);
     box-shadow: 0 12px 35px var(--accent-glow);
 }
 
 .card h2 {
     margin-top: 0;
     font-size: 1.5rem;
-    color: #fff;
+    color: var(--text-main);
     letter-spacing: -0.01em;
     display: flex;
     align-items: center;
@@ -96,26 +100,24 @@ header h1 {
     display: inline-block;
     width: 4px;
     height: 20px;
-    background: linear-gradient(to bottom, var(--accent-color), var(--accent-secondary));
-    border-radius: 2px;
+    background: var(--accent-color);
 }
 
 /* Idővonal */
 .timeline-item h3 {
     margin: 0 0 4px 0;
-    color: #fff;
+    color: var(--text-main);
 }
 
 .timeline-item .date {
     display: inline-block;
-    color: #6ee7b7;
+    color: #ffffff;
     font-size: 0.85rem;
     font-weight: 700;
-    background: rgba(16, 185, 129, 0.12);
+    background: var(--accent-color);
     padding: 4px 12px;
-    border-radius: 20px;
     margin-bottom: 12px;
-    border: 1px solid rgba(16, 185, 129, 0.2);
+    border: 1px solid var(--card-border);
 }
 
 /* Skill Grid */
@@ -127,12 +129,13 @@ header h1 {
 }
 
 .skill-category h4 {
-    color: #6ee7b7;
+    color: var(--accent-secondary);
     margin-top: 0;
     margin-bottom: 12px;
     text-transform: uppercase;
     font-size: 0.85rem;
     letter-spacing: 0.05em;
+    font-weight: 700;
 }
 
 .skill-category ul {
@@ -165,9 +168,8 @@ header h1 {
 }
 
 .project-card {
-    background: rgba(11, 19, 26, 0.7);
+    background: rgba(255, 255, 255, 0.5);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
     padding: 24px;
     display: flex;
     flex-direction: column;
@@ -178,11 +180,12 @@ header h1 {
 .project-card:hover {
     transform: translateY(-4px);
     border-color: var(--accent-color);
+    background: rgba(255, 255, 255, 0.8);
 }
 
 .project-card h3 {
     margin-top: 0;
-    color: #fff;
+    color: var(--text-main);
 }
 
 .project-card p {
@@ -194,11 +197,11 @@ header h1 {
 /* Gombok */
 .btn {
     display: inline-block;
-    background: linear-gradient(135deg, var(--accent-color) 0%, #059669 100%);
+    background: var(--accent-color);
     color: #fff;
     text-decoration: none;
     padding: 12px 20px;
-    border-radius: 8px;
+    border-radius: 4px;
     font-weight: 700;
     font-size: 0.95rem;
     text-align: center;
@@ -207,12 +210,11 @@ header h1 {
 }
 
 .btn:hover {
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
-    filter: brightness(1.1);
+    filter: brightness(1.15);
 }
 
 .btn.disabled {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.05);
     color: var(--text-muted);
     box-shadow: none;
     border: 1px solid var(--border-color);
@@ -222,6 +224,34 @@ header h1 {
 footer {
     margin-top: 50px;
     text-align: center;
-    color: var(--text-muted);
+    color: #c3a78b;
     font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.top-bar {
+    max-width: 850px;
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: -20px;
+}
+
+.lang-btn {
+    background: rgba(230, 223, 213, 0.12);
+    color: #f4efe6;
+    border: 1px solid #c3a78b;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.2s ease;
+}
+
+.lang-btn:hover {
+    background: var(--accent-color, #c5583f);
+    border-color: var(--accent-color, #c5583f);
+    color: #fff;
 }
