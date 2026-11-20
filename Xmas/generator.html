@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="hu">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="docTitle">Map generator</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header-row">
+            <h1 data-i18n="title">Secret Santa</h1>
+        </div>
+        <div>
+            <p>Hány ember vesz részt a húzásban?</p>
+            <input type="number" id="participantCount" min="2" max="100" onchange="generateTable()">
+            <input type="button" value="Elemek generálása" onclick="generateParticipants()">
+        </div>
+        <div>
+            <table id="participantTable">
+                
+            </table>
+        </div>
+
+</body>
+<script>
+    function generateTable(){
+        var table = document.getElementById("participantTable");
+        table.innerHTML="<thead><tr><th> Résztvevő</th><th> Kihúzott</th></tr></thead><tbody></tbody>"
+        for (let index = 0; index < document.getElementById("participantCount").value; index++) {
+            table.innerHTML+= "<tr><td><input type='text' value='" + (index + 1) + "' id='participant" + (index + 1) + "'></td><td><p id='drawn" + (index + 1) + "'></p></td></tr>";
+        }
+    }
+    function generateParticipants() {
+        var participants = [];
+        for (let index = 0; index < document.getElementById("participantCount").value; index++) {
+            participants.push(document.getElementById("participant" + (index + 1)).value);
+        }
+        var participantsShuffled=[];
+        var random;
+
+        for (let index = 0; 0 < participants.length; index++) {
+            random=Math.floor(Math.random() * participants.length);
+            participantsShuffled.push(participants[random]);
+            participantsPuffer=participants[participants.length-1];
+            participants[random]=participantsPuffer;
+            participants.pop();
+        }
+        
+
+        for (let index = 0; index < participantsShuffled.length; index++) {
+            document.getElementById("drawn" + (index + 1)).textContent = participantsShuffled[index];
+        }
+    }
+</script>
+</html>
