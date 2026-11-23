@@ -412,4 +412,17 @@ footer {
     font-size: 9pt;
     color: #444444;
   }
+
+  main.container {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  #sec-about    { order: 1; }
+  #sec-goal     { order: 2; }
+  #sec-exp      { order: 3; }
+  #sec-edu      { order: 4; }
+  #sec-skills   { order: 5; }
+  #sec-projects { order: 6; }
+  #sec-contact  { order: 7; }
 }
