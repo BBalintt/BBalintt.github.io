@@ -262,6 +262,15 @@ footer {
 }
 
 @media print {
+  /* Minden keret és árnyék eltávolítása a nyomtatási nézetben */
+  *,
+  *::before,
+  *::after {
+    border: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
   /* 1. Felesleges interaktív / navigációs elemek elrejtése */
   .top-bar,
   #lang-toggle,
@@ -282,13 +291,12 @@ footer {
     width: 100% !important;
   }
 
-  /* Fejléc kompaktabbá tétele, hogy ne vigyen el felesleges helyet */
+  /* Fejléc kompaktabbá tétele */
   header {
     background: none !important;
     color: #111111 !important;
     padding: 0 0 8pt 0 !important;
     margin-bottom: 10pt !important;
-    border-bottom: 1.5pt solid #222222;
   }
 
   header h1 {
@@ -302,30 +310,27 @@ footer {
     color: #333333 !important;
   }
 
-  /* 3. Fő konténer és kártyák: blokk-elrendezés a biztonságos tördeléshez */
+  /* 3. Fő konténer és kártyák: flex + egyedi sorrend */
   main.container {
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
     max-width: 100% !important;
     width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
+    gap: 0 !important;
   }
 
   section.card {
     display: block !important;
     background: #ffffff !important;
-    box-shadow: none !important;
-    border: none !important;
-    border-bottom: 0.75pt solid #cccccc;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border-radius: 0 !important;
     padding: 8pt 0 !important;
     margin: 0 0 8pt 0 !important;
     break-inside: auto;
     page-break-inside: auto;
-  }
-
-  section.card:last-of-type {
-    border-bottom: none;
   }
 
   /* 4. Címsorok védelme: ne maradjon árva címsor az oldal alján */
@@ -340,6 +345,10 @@ footer {
   h2 {
     font-size: 13pt;
     margin: 0 0 6pt 0;
+  }
+
+  .card h2::before {
+    display: none !important;
   }
 
   h3 {
@@ -358,6 +367,17 @@ footer {
     widows: 3;
   }
 
+  /* Dátumok letisztítása a sötét/színes doboz helyett */
+  .timeline-item .date {
+    display: inline-block;
+    background: none !important;
+    color: #444444 !important;
+    padding: 0 !important;
+    margin-bottom: 6pt;
+    font-size: 9pt;
+    font-weight: 600;
+  }
+
   /* 5. Különálló elemek egyben tartása */
   .project-card,
   .timeline-item,
@@ -366,35 +386,41 @@ footer {
     page-break-inside: avoid;
   }
 
-  /* Projektek: nyomtatásban egylépcsős vagy 2 oszlopos tiszta lista */
+  /* Projektek: egylépcsős lista keretek nélkül */
   .project-grid {
     display: block !important;
+    margin-top: 0 !important;
   }
 
   .project-card {
+    background: none !important;
+    transform: none !important;
     padding: 4pt 0 6pt 0;
-    border-bottom: 0.5pt dashed #cccccc;
   }
 
-  .project-card:last-child {
-    border-bottom: none;
-  }
-
-  /* Képzettségek rácsa: 2 oszlop nyomtatásban jól átlátható és kevésbé szűk */
+  /* Képzettségek rácsa: 2 oszlop nyomtatásban */
   .skills-grid {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 8pt 16pt !important;
+    margin-top: 6pt !important;
   }
 
   .skill-category ul {
     margin: 0;
     padding-left: 14pt;
+    list-style: disc !important;
   }
 
   .skill-category li {
+    color: #111111 !important;
     line-height: 1.3;
     margin-bottom: 1pt;
+    display: list-item !important;
+  }
+
+  .skill-category li::before {
+    display: none !important;
   }
 
   /* Kapcsolati linkek szöveges formában is olvashatók legyenek */
@@ -413,11 +439,7 @@ footer {
     color: #444444;
   }
 
-  main.container {
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
+  /* Szekciók sorrendje nyomtatáskor */
   #sec-about    { order: 1; }
   #sec-goal     { order: 2; }
   #sec-exp      { order: 3; }
